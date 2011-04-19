@@ -1,0 +1,68 @@
+diff -ru 1/libtransmission/Makefile.am 2/libtransmission/Makefile.am
+--- 1/libtransmission/Makefile.am	2010-12-09 14:53:19.000000000 -0500
++++ 2/libtransmission/Makefile.am	2011-02-22 22:55:18.508019352 -0500
+@@ -13,9 +13,9 @@
+     @PTHREAD_CFLAGS@ \
+     @ZLIB_CFLAGS@
+ 
+-noinst_LIBRARIES = libtransmission.a
++noinst_LTLIBRARIES = libtransmission.la
+ 
+-libtransmission_a_SOURCES = \
++libtransmission_la_SOURCES = \
+     announcer.c \
+     bandwidth.c \
+     bencode.c \
+@@ -133,9 +133,9 @@
+     @ZLIB_LDFLAGS@
+ 
+ apps_ldadd = \
+-    ./libtransmission.a  \
+-    $(top_builddir)/third-party/miniupnp/libminiupnp.a \
+-    $(top_builddir)/third-party/libnatpmp/libnatpmp.a \
++    ./libtransmission.la  \
++    $(top_builddir)/third-party/miniupnp/libminiupnp.la \
++    $(top_builddir)/third-party/libnatpmp/libnatpmp.la \
+     @INTLLIBS@ \
+     @DHT_LIBS@ \
+     @LIBCURL_LIBS@ \
+diff -ru 1/third-party/dht/Makefile.am 2/third-party/dht/Makefile.am
+--- 1/third-party/dht/Makefile.am	2010-12-09 14:53:33.000000000 -0500
++++ 2/third-party/dht/Makefile.am	2011-02-22 22:49:20.033720845 -0500
+@@ -1,6 +1,6 @@
+ AM_CFLAGS = @PTHREAD_CFLAGS@ 
+ 
+-noinst_LIBRARIES = libdht.a
+-libdht_a_SOURCES = dht.c
++noinst_LTLIBRARIES = libdht.la
++libdht_la_SOURCES = dht.c
+ noinst_HEADERS = dht.h
+ EXTRA_DIST = CHANGES dht-example.c LICENCE README
+diff -ru 1/third-party/libnatpmp/Makefile.am 2/third-party/libnatpmp/Makefile.am
+--- 1/third-party/libnatpmp/Makefile.am	2010-12-09 14:53:34.000000000 -0500
++++ 2/third-party/libnatpmp/Makefile.am	2011-02-22 22:50:22.139267532 -0500
+@@ -1,8 +1,8 @@
+-noinst_LIBRARIES = libnatpmp.a
++noinst_LTLIBRARIES = libnatpmp.la
+ 
+ AM_CFLAGS = @PTHREAD_CFLAGS@ -DENABLE_STRNATPMPERR
+ 
+-libnatpmp_a_SOURCES = \
++libnatpmp_la_SOURCES = \
+     getgateway.c \
+     natpmp.c \
+     wingettimeofday.c
+diff -ru 1/third-party/miniupnp/Makefile.am 2/third-party/miniupnp/Makefile.am
+--- 1/third-party/miniupnp/Makefile.am	2010-12-09 14:53:33.000000000 -0500
++++ 2/third-party/miniupnp/Makefile.am	2011-02-22 22:50:43.277751848 -0500
+@@ -1,8 +1,8 @@
+-noinst_LIBRARIES = libminiupnp.a
++noinst_LTLIBRARIES = libminiupnp.la
+ 
+ AM_CFLAGS = @PTHREAD_CFLAGS@ -DNDEBUG
+ 
+-libminiupnp_a_SOURCES = \
++libminiupnp_la_SOURCES = \
+     connecthostport.c \
+     igd_desc_parse.c \
+     minisoap.c \
