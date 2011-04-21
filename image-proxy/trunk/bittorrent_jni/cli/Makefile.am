@@ -4,6 +4,7 @@ AM_CPPFLAGS = \
 
 AM_CFLAGS = \
     @LIBEVENT_CFLAGS@ \
+    @LIBSQLITE3_CFLAGS@ \
     @OPENSSL_CFLAGS@ \
     @LIBCURL_CFLAGS@ \
     @ZLIB_CFLAGS@ \
@@ -24,6 +25,7 @@ seeding_LDADD = \
     $(top_builddir)/third-party/miniupnp/libminiupnp.la \
     @DHT_LIBS@ \
     @LIBEVENT_LIBS@ \
+    @LIBSQLITE3_LIBS@ \
     @LIBCURL_LIBS@ \
     @OPENSSL_LIBS@ \
     @INTLLIBS@ \
