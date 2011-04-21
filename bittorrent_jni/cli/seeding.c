@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
 	}
 	
 	
-	int rc = sqlite3_open_v2(database, &db, SQLITE_OPEN_READWRITE, NULL);
+	int rc = sqlite3_open(database, &db);
 	if(rc!=SQLITE_OK)
 	{
 		fprintf(stderr, "%s\n", sqlite3_errmsg(db));

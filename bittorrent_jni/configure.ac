@@ -196,7 +196,7 @@ fi
 if test "x$user_specified_libsqlite3" = "xyes"; then
     AC_MSG_NOTICE([Using user-specified LIBSQLITE3_LIBS and LIBSQLITE3_CFLAGS])
 else
-    AC_CHECK_LIB([sqlite3],[sqlite3_open_v2],
+    AC_CHECK_LIB([sqlite3],[sqlite3_open],
                  [],
                  [AC_MSG_ERROR(libsqlite3 not found!)],
 		 [-lsqlite3])
