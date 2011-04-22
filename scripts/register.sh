@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 #Parameter 1: Image location
 #Parameter 2: Bukkit name
