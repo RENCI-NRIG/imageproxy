@@ -69,14 +69,12 @@ public class SqliteDLDatabase extends SqliteBase{
 			}
 			this.deleteDownloadingEntries(connection);
 			BTDownload.deleteIncompleteImages();
-		//	System.exit(0);
 		}finally {
     		returnConnection(connection);
     	}
 		return flag;
 	}
     
-	//TO DO:  addToDLlist (downloadingentry) if the return value is -1
 	public int checkDownloadList(String hashcode, Entry downloadingentry) throws SQLException{
 		String query = "SELECT * FROM "+imagestable;
 		int flag=0;
@@ -94,24 +92,20 @@ public class SqliteDLDatabase extends SqliteBase{
         			if(status==0)//downloading
         			{
         				flag=-1;
-	        		//	rs.updateShort("REF", (short)0);
 	        			this.updateRefNum((short)0, guid, connection);
 	        			downloadingentry.setFilePath(rs.getString("FILEPATH"));
 	        			downloadingentry.setFilesize(rs.getLong("FILESIZE"));
 	        			downloadingentry.setHashcode(guid);
 	        			downloadingentry.setReference(rs.getShort("REF"));
-	        		//	addToDLlist(downloadingentry);
 	        			continue;
 	        		}
         			else if(status==1)//downloaded
         			{
 	        			flag=1;
-	        		//	rs.updateShort("REF", (short)0);
 	        			this.updateRefNum((short)0, guid, connection);
 	        			continue;
         			}
         		}
-    		//	rs.updateShort("REF", (short)newRef);
     			this.updateRefNum((short)newRef, guid, connection);
         	}
     	}finally {
@@ -177,7 +171,7 @@ public class SqliteDLDatabase extends SqliteBase{
 	
 	public void updateRegistrationStatus(String guid) throws SQLException
 	{
-		String query="UPDATE "+imagestable+" SET UNBUNDING=0 WHERE GUID="+dbString(guid);
+		String query="UPDATE "+imagestable+" SET UNBUNDLING=0 WHERE GUID="+dbString(guid);
 		this.executeUpdate(query);
 	}
 	

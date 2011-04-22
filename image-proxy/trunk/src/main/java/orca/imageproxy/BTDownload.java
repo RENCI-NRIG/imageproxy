@@ -70,11 +70,12 @@ public class BTDownload {
 		totalsize = SETTINGSIZE;
 		this.errors = "";
 		new File(BTDownload.DOWNLOADFOLDER).mkdir();
-		//this.initSession(imageproxyHome);
 		//clear the downloading images
 		l.info("attempting to clear the downloading images left by the last nasty crash");
 		if(!sqliteDLDatabase.clearDownloadingImages())
 			l.info("no downloading image needs to be cleared.");
+		initSession(imageproxyHome);
+		
 	}
 	
 	synchronized public static void deleteDownloadingImage(String hash, String filepath) throws Exception{
@@ -180,7 +181,6 @@ public class BTDownload {
 					type= filename.substring(filename.lastIndexOf("."));
 				
 				long newfilesize = 0;
-				System.out.println("before getFilelength");
 				if (type.equals(".torrent")) {
 					String result=getFileLength(surl, BTDownload.DOWNLOADFOLDER);
 					int len_start=result.lastIndexOf(".torrent")+".torrent".length();
@@ -196,7 +196,6 @@ public class BTDownload {
 					File downloadfile = new File(surl);
 					newfilesize += downloadfile.length();
 				}
-				System.out.println("getFilelength:"+newfilesize+" "+surl);
 				l.info(hash + " image's size is "+newfilesize+"B");
 				
 				if (totalsize + newfilesize > spacesize) {
@@ -218,7 +217,6 @@ public class BTDownload {
 				}
 				Entry entry = new Entry(hash, newfilesize, 0, surl);
 				this.sqliteDLDatabase.insertEntry(entry);
-			//	System.exit(0);
 			return 1;
 		}
 	}
@@ -322,9 +320,8 @@ public class BTDownload {
 	public native void btdownloadfromURL(String surl, String path, String hash)
 			throws Exception;
 
-	// download image in bt protocol
 	static {
-		//System.loadLibrary("btclient"); // the bt c library we are hooking up
+		System.loadLibrary("btclient"); // the bt c library we are hooking up
 	}
 
 	public String Download(String surl, String hash, boolean[] isDownloading) throws Exception
@@ -352,13 +349,4 @@ public class BTDownload {
 
 		return BTDownload.DOWNLOADFOLDER + File.separator + hash;
 	}
-	
-	/*public static void main(String args[]){
-		try {
-			BTDownload.getInstance().Download("http://url", "image1", new boolean[1]);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}*/
 }

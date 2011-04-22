@@ -53,8 +53,8 @@ public class imageproxyclient {
 			}
 			else if(args[i].equals("--help")||args[i].equals("-h"))
 			{
-				System.out.println("Usage: PROGRAM [OPTION] -u <image url> -g <image global unique ID>");
-				System.out.println("Download and register Image with given image url and global unique ID.");
+				System.out.println("Usage: PROGRAM [OPTION] -u <metadata file url> -g <metadata file's global unique ID> -p <proxy url>");
+				System.out.println("Parse the metadata file; Download and register Images in that metadata file.");
 				System.out.println();
 				System.out.println("Mandatory arguments to long options are mandatory for short options too.");
 				System.out.println("-u, --url			url of required image");
@@ -94,7 +94,7 @@ public class imageproxyclient {
 		if(paralength!=3)
 		{
 			System.err.println("invalid parameters, please check.");
-			System.err.println("try imageproxyclient --help for more information.");
+			System.err.println("try --help for more information.");
 			return null;
 		}
 		return parameters;
