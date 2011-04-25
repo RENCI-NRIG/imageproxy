@@ -82,7 +82,7 @@ void sessionInit(const char* root)
 	  	h = tr_sessionInit( "client", cDir, FALSE, &settings );
 	}
 	//reset the SEEDING status to 0 if it's not null
-	char* updateString = "UPDATE IMAGES SET SEEDING=0 WHERE SEEDING=1";
+	char* updateString = "UPDATE FILE SET SEEDING=0 WHERE SEEDING=1";
 	char* errMsg=NULL;
 	int rc= sqlite3_exec(db, updateString, NULL, NULL, &errMsg);
 	if(rc!=SQLITE_OK)
@@ -185,7 +185,7 @@ int main(int argc, char* argv[])
 	int columns=0;
 	char **azResult;
 	char *queryMsg;
-	char* sql="SELECT * FROM IMAGES WHERE STATUS=1 AND SEEDING=0";
+	char* sql="SELECT * FROM FILE WHERE STATUS=1 AND SEEDING=0";
 	while(1)
 	{
 		int queryResult=sqlite3_get_table(db, sql, &azResult,&rows, &columns, &queryMsg);
@@ -199,9 +199,9 @@ int main(int argc, char* argv[])
 		for(int i=0;i<rows;i++)
 		{
 			//update seeding flag in database
-			char update[strlen("UPDATE IMAGES SET SEEDING=1 WHERE GUID=")+2+strlen(azResult[i*columns+columns])];
+			char update[strlen("UPDATE FILE SET SEEDING=1 WHERE GUID=")+2+strlen(azResult[i*columns+columns])];
 			char* updateMsg;
-			sprintf(update, "UPDATE IMAGES SET SEEDING=1 WHERE GUID='%s'", azResult[i*columns+columns]);
+			sprintf(update, "UPDATE FILE SET SEEDING=1 WHERE GUID='%s'", azResult[i*columns+columns]);
 			int updateResult=sqlite3_exec(db, update, NULL, NULL, &updateMsg);
 			if(updateResult==SQLITE_OK)
 				sqlite3_free(updateMsg);
