@@ -10,7 +10,6 @@ AM_CFLAGS = \
     @ZLIB_CFLAGS@ \
     @JAVA_CFLAGS@ \
     @PTHREAD_CFLAGS@
-######    @LIBSQLITE3_LIBS@
 
 AM_LDFLAGS = \
     @ZLIB_LDFLAGS@
@@ -31,7 +30,6 @@ seeding_LDADD = \
     @INTLLIBS@ \
     @ZLIB_LIBS@ \
     @PTHREAD_LIBS@
-#####    @LIBSQLITE3_LIBS@
 
 lib_LTLIBRARIES = libbtclient.la
 
