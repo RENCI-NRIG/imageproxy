@@ -8,12 +8,12 @@ import java.security.NoSuchAlgorithmException;
 
 public class Util {
 	
-	public String getFileHash(String filename) throws NoSuchAlgorithmException, IOException {
+	public static String getFileHash(String filename) throws NoSuchAlgorithmException, IOException {
         byte[] b = createFileHash(filename, "SHA-1");
         return asHex(b);
     }
 	
-	public byte[] createFileHash(String filename, String method) throws NoSuchAlgorithmException, IOException {
+	public static byte[] createFileHash(String filename, String method) throws NoSuchAlgorithmException, IOException {
         InputStream fis =  new FileInputStream(filename);
         byte[] buffer = new byte[1024];
         MessageDigest complete = MessageDigest.getInstance(method);
@@ -28,7 +28,7 @@ public class Util {
         return complete.digest();
     }
     
-    public String asHex(byte[] b) {
+    public static String asHex(byte[] b) {
         String result = "";
         for (int i=0; i < b.length; i++) {
             result +=
