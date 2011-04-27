@@ -90,7 +90,7 @@ public class SqliteDLDatabase extends SqliteBase{
     	}
     }
     
-	public int checkDownloadList(String hashcode, Entry downloadingentry) throws SQLException{
+	public int checkDownloadList(String hashcode) throws SQLException{
 		String query = "SELECT * FROM "+imagestable;
 		int flag=0;
     	Connection connection = getConnection();
@@ -108,10 +108,6 @@ public class SqliteDLDatabase extends SqliteBase{
         			{
         				flag=-1;
 	        			this.updateRefNum((short)0, guid, connection);
-	        			downloadingentry.setFilePath(rs.getString("FILEPATH"));
-	        			downloadingentry.setFilesize(rs.getLong("FILESIZE"));
-	        			downloadingentry.setHashcode(guid);
-	        			downloadingentry.setReference(rs.getShort("REF"));
 	        			continue;
 	        		}
         			else if(status==1)//downloaded
@@ -198,10 +194,10 @@ public class SqliteDLDatabase extends SqliteBase{
 			{
 				if(type==BTDownload.Type.HTTP)
 					query="INSERT INTO "+imagestable+" VALUES ("+dbString(correctGUID)+", 1, "+entry.getFilesize()+", 0, "+dbString(entry.getFilePath())+
-						", 0, 1)";
+						", null, 1)";
 				else if(type==BTDownload.Type.BT)
 					query="INSERT INTO "+imagestable+" VALUES ("+dbString(correctGUID)+", 1, "+entry.getFilesize()+", 0, "+dbString(entry.getFilePath())+
-						", null, 1)";
+						", 0, 1)";
 				this.executeUpdate(query, connection);
 			}
 		}finally {
