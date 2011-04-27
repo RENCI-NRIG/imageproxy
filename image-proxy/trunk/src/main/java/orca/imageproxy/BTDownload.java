@@ -71,11 +71,12 @@ public class BTDownload {
 		totalsize = SETTINGSIZE;
 		this.errors = "";
 		new File(BTDownload.DOWNLOADFOLDER).mkdir();
+		initSession(imageproxyHome);
 		//clear the downloading images
 		l.info("attempting to clear the downloading images left by the last nasty crash");
 		if(!sqliteDLDatabase.clearDownloadingImages())
 			l.info("no downloading image needs to be cleared.");
-		initSession(imageproxyHome);
+
 		
 	}
 	
@@ -122,6 +123,17 @@ public class BTDownload {
 		}
 		downloadinglist.add(entry);
 	}
+	
+	private Entry getEntryFromDLList(String hash)
+	{
+		Iterator<Entry> iterator = downloadinglist.iterator();
+		while(iterator.hasNext()){
+			Entry e = iterator.next();
+			if(e.getHashcode().equals(hash))
+				return e;
+		}
+		return null;
+	}
 
 	private Entry removeFromDLlist(String hashcode)
 	// remove the downloaded image from the downloading list if it's found
@@ -158,22 +170,28 @@ public class BTDownload {
 	// return -1 if it's not cached and the disk space is not large enough to
 	// store it
 	{
-		Entry downloadingentry = new Entry();
-		int value = this.sqliteDLDatabase.checkDownloadList(hash, downloadingentry);
+
+		int value = this.sqliteDLDatabase.checkDownloadList(hash);
 		if (value != 0)// downloading or downloaded
 		{
 			if (value == 1)// downloaded
 				return 0;
 			else {
-				addToDLlist(downloadingentry);
+				Entry downloadingentry=getEntryFromDLList(hash);
+				if(downloadingentry==null)
+					throw new NullPointerException("the downloading entry should have been added to the downloading list");
 				synchronized (downloadingentry) {
 					l.info(hash + " is downloading");
 					isDownloading[0] = true;
 					downloadingentry.wait();
 				}
-				return 0;
+				return controller(spacesize, hash, surl, isDownloading);
 			}
 		} else {
+				Entry downloadingentry = new Entry();
+				downloadingentry.setHashcode(hash);
+				addToDLlist(downloadingentry);
+				
 				URL url = new URL(surl);
 				String filename = url.getFile();
 				String type="";
@@ -194,8 +212,13 @@ public class BTDownload {
 					}
 					
 				} else {
-					File downloadfile = new File(surl);
-					newfilesize += downloadfile.length();
+					HttpURLConnection urlcon=(HttpURLConnection)url.openConnection();
+					String fileLength=urlcon.getHeaderField("content-Length");
+					long length=Long.parseLong(fileLength);
+					if(length<=0)
+						throw new Exception("fail on parsing the length of the image file");
+					newfilesize += length;
+					urlcon.disconnect();
 				}
 				l.info(hash + " image's size is "+newfilesize+"B");
 				
@@ -335,7 +358,7 @@ public class BTDownload {
 			filepath = items[3];
 		}
 		
-		String correctHash=Util.getFileHash(filepath);
+		String correctHash=Util.getFileHash(BTDownload.DOWNLOADFOLDER+File.separator+hash);
 		Entry e=new Entry(hash, Long.parseLong(filesize), Integer.parseInt(reference), filepath);
 		
 		if(!correctHash.equals(hash) )//the user-provided hash is incorrect, correct the hash in database and update its download status
@@ -347,7 +370,7 @@ public class BTDownload {
 				deleteImageBT(hash, filepath);
 			}
 			this.sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.BT);
-			File newfile=new File(filepath);
+			File newfile=new File(BTDownload.DOWNLOADFOLDER+File.separator+hash);
 			if(newfile.exists())
 				newfile.renameTo(new File(BTDownload.DOWNLOADFOLDER + File.separator
 						+ correctHash));
