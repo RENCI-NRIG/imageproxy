@@ -75,6 +75,21 @@ public class SqliteDLDatabase extends SqliteBase{
 		return flag;
 	}
     
+    public boolean isExisted(String image_guid) throws SQLException
+    {
+    	String query="SELECT * FROM "+imagestable+" WHERE GUID="+dbString(image_guid);
+    	Connection connection = getConnection();
+    	try{
+    		Statement statement = connection.createStatement();
+    		ResultSet rs = statement.executeQuery(query);
+    		if(!rs.next())
+    			return false;
+    		return true;
+    	}finally {
+    		returnConnection(connection);
+    	}
+    }
+    
 	public int checkDownloadList(String hashcode, Entry downloadingentry) throws SQLException{
 		String query = "SELECT * FROM "+imagestable;
 		int flag=0;
@@ -167,6 +182,32 @@ public class SqliteDLDatabase extends SqliteBase{
 		if(count==0)
 			return false;
 		return true;
+	}
+	
+	public synchronized void updateDownloadStatus(Entry entry, String correctGUID, BTDownload.Type type) throws SQLException
+	{
+		String query=null;
+		query = "DELETE FROM "+imagestable+" WHERE GUID="+dbString(entry.getHashcode());
+		this.executeUpdate(query);
+		query = "SELECT * FROM "+imagestable+" WHERE GUID="+dbString(correctGUID);
+		Connection connection = getConnection();
+		try{
+			Statement statement=connection.createStatement();
+			ResultSet rs=statement.executeQuery(query);
+			if(!rs.next())
+			{
+				if(type==BTDownload.Type.HTTP)
+					query="INSERT INTO "+imagestable+" VALUES ("+dbString(correctGUID)+", 1, "+entry.getFilesize()+", 0, "+dbString(entry.getFilePath())+
+						", 0, 1)";
+				else if(type==BTDownload.Type.BT)
+					query="INSERT INTO "+imagestable+" VALUES ("+dbString(correctGUID)+", 1, "+entry.getFilesize()+", 0, "+dbString(entry.getFilePath())+
+						", null, 1)";
+				this.executeUpdate(query, connection);
+			}
+		}finally {
+			returnConnection(connection);
+		}
+
 	}
 	
 	public void updateRegistrationStatus(String guid) throws SQLException

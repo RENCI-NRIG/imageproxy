@@ -11,7 +11,7 @@ public class imageproxyclient {
 	
 	public static String[] parseCommandLine(String args[])
 	{
-		String[] parameters = new String[4];
+		String[] parameters = new String[3];
 		int paralength=0;
 		for(int i=0;i< args.length;i++)
 		{
@@ -20,7 +20,6 @@ public class imageproxyclient {
 				if(i+1>=args.length)
 				{
 					System.err.println("unparsable parameters, please use --help to see available options.");
-					System.err.println("try --help for more information.");
 					return null;
 				}
 				if(parameters[0]!=null)
@@ -33,32 +32,13 @@ public class imageproxyclient {
 				i++;
 				paralength++;
 			}
-			else if(args[i].equals("--guid")||args[i].equals("-g"))
-			{
-				if(i+1>=args.length)
-				{
-					System.err.println("unparable parameters, please use --help to see available options.");
-					System.err.println("try --help for more information.");
-					return null;
-				}
-				if(parameters[1]!=null)
-				{
-					System.err.println("too many hash parameters, only one hash parameter is acceptable.");
-					System.err.println("try --help for more information.");
-					return null;
-				}
-				parameters[1]=args[i+1];
-				i++;
-				paralength++;
-			}
 			else if(args[i].equals("--help")||args[i].equals("-h"))
 			{
 				System.out.println("Usage: PROGRAM [OPTION] -u <metadata file url> -g <metadata file's global unique ID> -p <proxy url>");
 				System.out.println("Parse the metadata file; Download and register Images in that metadata file.");
 				System.out.println();
 				System.out.println("Mandatory arguments to long options are mandatory for short options too.");
-				System.out.println("-u, --url			url of required image");
-				System.out.println("-g, --guid			global unique ID of required image");
+				System.out.println("-u, --url			url of metadata file");
 				System.out.println("-t, --timeout			the maximum timeout to the connection of server, " +
 														"exceeding which the connection will be stopped.");
 				System.out.println("-p, --proxy         URL of the ImageProxy installation");
@@ -69,29 +49,34 @@ public class imageproxyclient {
 				if(i+1>=args.length)
 				{
 					System.err.println("unparable parameters, please use --help to see available options.");
-					System.err.println("try --help for more information.");
 					return null;
 				}
-				if(parameters[2]!=null)
+				if(parameters[1]!=null)
 				{
 					System.err.println("too many timeout parameters, only one timeout parameter is acceptable.");
 					System.err.println("try --help for more information.");
 					return null;
 				}
-				parameters[2]=args[i+1];
+				parameters[1]=args[i+1];
 				i++;
 			}
 			else if (args[i].equals("--proxy") || args[i].equals("-p")) {
 				if (i+1>=args.length) {
-					System.err.println("you must specify proxy URL. See --help for more");
+					System.err.println("you must specify proxy URL. See --help for more information.");
 					return null;
 				}
-				parameters[3]=args[i+1];
+				if(parameters[2]!=null)
+				{
+					System.err.println("too many proxy parameters, only one proxy parameter is acceptable.");
+					System.err.println("try --help for more information.");
+					return null;
+				}
+				parameters[2]=args[i+1];
 				i++;
 				paralength++;
 			}
 		}
-		if(paralength!=3)
+		if(paralength!=2)
 		{
 			System.err.println("invalid parameters, please check.");
 			System.err.println("try --help for more information.");
@@ -114,14 +99,14 @@ public class imageproxyclient {
 			String[] parameters=parseCommandLine(args);
 			if(parameters==null)
 				return;
-			System.out.println("Connecting to " + parameters[3]);
-			IMAGEPROXYStub stub=new IMAGEPROXYStub(parameters[3]);
-			if(parameters[2]==null)
+			System.out.println("Connecting to " + parameters[2]);
+			IMAGEPROXYStub stub=new IMAGEPROXYStub(parameters[2]);
+			if(parameters[1]==null)
 				stub._getServiceClient().getOptions().setTimeOutInMilliSeconds(1000*3600);
 			else
 			{
 				try{
-					int timeout=Integer.parseInt(parameters[2]);
+					int timeout=Integer.parseInt(parameters[1]);
 					if(timeout<=0)
 					{
 						System.err.println("timeout parameter should be larger than 0.");
@@ -135,7 +120,6 @@ public class imageproxyclient {
 			}
 
 			IMAGEPROXYStub.RegisterImage registerimage=new IMAGEPROXYStub.RegisterImage();
-			registerimage.setGuid(parameters[1]);
 			registerimage.setUrl(parameters[0]);
 			IMAGEPROXYStub.RegisterImageResponse response=stub.registerImage(registerimage);
 			String returnVal=response.get_return();

@@ -88,54 +88,11 @@ public class RegistrationScript {
 	 * @param guid hash of the image, to uniquely identify it
 	 * @return registered image ids, ERROR in case of any exception
 	 */
-	public String RegisterImage(String url, String guid) {
+	public String RegisterImage(String url) {
 
 		try{
 
-			Properties imageIds;
-			
-			try{
-				// see if this guid is present in registry
-				imageIds = db.checkBundleGuid(guid, true);
-
-				// null means we get to load it, otherwise wait and return image ids
-				if (imageIds != null) {
-					// wait for other threads to load the image
-					while (Globals.IMAGE_INPROGRESS.equals(imageIds.get(Globals.FILE_SYSTEM_IMAGE_KEY))) {
-						l.info("Someone is downloading. Waiting for image " + guid + " to load");
-						try {
-							// TODO: should replace this with condition variables instead of
-							// polling
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-							;
-						}
-						
-						imageIds = db.checkBundleGuid(guid, false);
-						
-						if(imageIds == null){
-							l.error("Exception while downloading/registering image");
-							return Globals.ERROR_CODE;
-						}
-					}
-					
-					l.info("Filesystem Image id: " + imageIds.get(Globals.FILE_SYSTEM_IMAGE_KEY));
-					if(imageIds.get(Globals.KERNEL_IMAGE_KEY) != null){
-						l.info("Kernel Image id: " + imageIds.get(Globals.KERNEL_IMAGE_KEY));
-					}
-					if(imageIds.get(Globals.RAMDISK_IMAGE_KEY) != null){
-						l.info("Ramdisk Image id: " + imageIds.get(Globals.RAMDISK_IMAGE_KEY));
-					}
-					return toString(imageIds);
-				}
-			}catch(Exception exception){
-				l.error("Exception while querying database for existing records.");
-				l.error(exception.toString(), exception);
-				db.removeBundleGuid(guid);
-				return Globals.ERROR_CODE;
-			}
-
-			imageIds = new Properties();
+			Properties imageIds = new Properties();
 			
 			if (testMode) {
 				l.info("Test mode enabled. Sleeping " + testModeSleep + " msec.");
@@ -158,13 +115,12 @@ public class RegistrationScript {
 				String emi, eki, eri;
 				
 				try{
-					l.info("Image " + guid + " is not registered, downloading");
+					l.info("Entering download and registration process");
 					
 					Map<String, Pair<String, String>> imageInfo = parseMetadata(url);
 					
 					if(!imageInfo.containsKey(Globals.FILE_SYSTEM_IMAGE_KEY)){
 						l.error("Valid filesystem image information could not be found in the metadata.");
-						db.removeBundleGuid(guid);
 						return Globals.ERROR_CODE;
 					}
 						
@@ -199,16 +155,10 @@ public class RegistrationScript {
 					
 				}catch(Exception exception){
 					l.error(exception.toString(), exception);
-					db.removeBundleGuid(guid);
 					return Globals.ERROR_CODE;
 				}
 				
 			}
-			
-			// add the new entry to the registry
-			db.updateBundleGuid(guid, imageIds);
-			// change the registration status to finished so the image can be replaced by an incoming one
-			SqliteDLDatabase.getInstance().updateRegistrationStatus(guid);
 			
 			l.info("Filesystem Image id: " + imageIds.get(Globals.FILE_SYSTEM_IMAGE_KEY));
 			if(imageIds.get(Globals.KERNEL_IMAGE_KEY) != null){
@@ -283,7 +233,7 @@ public class RegistrationScript {
 					NodeList imageType = imgTypeElmnt.getChildNodes();
 					if(imageType.getLength()!=0 && validImageTypes.contains(((Node) imageType.item(0)).getNodeValue().trim())){
 						type = ((Node) imageType.item(0)).getNodeValue();
-						l.info("\nImage Type : "  + type);
+						l.info("Image Type : "  + type);
 					}else{
 						l.info("Invalid image type");
 						continue;

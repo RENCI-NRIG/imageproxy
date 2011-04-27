@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -221,7 +222,7 @@ public class BTDownload {
 		}
 	}
 
-	public boolean downloadfromURL(String surl, String path, String hash) throws Exception
+	public String downloadfromURL(String surl, String path, String hash) throws Exception
 	// download directly if the file is image; if the file is bt file, when
 	// download by using bt protocol
 	// return true if the file is downloaded in a normal way, which indicates it
@@ -248,46 +249,72 @@ public class BTDownload {
 			
 			if (type.equals(".torrent")) {
 				// download by bt protocol
-				this.btdownloadfromURL(surl, path, hash);
-				return false;
+				String correctHash=this.btdownloadfromURL(surl, path, hash);
+				return correctHash;
 			} else {
-				BufferedInputStream bis;
 				// download file directly
-				try{
-				HttpURLConnection connection = (HttpURLConnection) url
-						.openConnection();
-				 bis = new BufferedInputStream(connection
-						.getInputStream());
-				}catch(IOException ioException){
-					throw new IOException("Exception while downloading file through http connection.");
-				}
-				
-				File newfile = new File(path + File.separator
-						+ hash);
-				
-				try{
-					BufferedOutputStream fos = new BufferedOutputStream(
-							new FileOutputStream(newfile));
-					int b;
-					while ((b = bis.read()) != -1) {
-						fos.write(b);
-					}
-					fos.flush();
-					fos.close();
-				}catch(IOException ioException){
-					throw new IOException("Error while writing data to file " + newfile);
-				}
-				Entry e = new Entry(hash, newfile.length(), -1, newfile.getPath());
-				boolean flag = this.sqliteDLDatabase.updateDownloadStatus(e, Type.HTTP);
-				if (!flag)
-					throw new SQLException(
-							"The downloading image should have been logged");
-				return true;
+				String correctHash=this.httpdownloadfromURL(url, path, hash);
+				return correctHash;
 			}
+	}
+	
+	public String httpdownloadfromURL(URL url, String path, String hash) throws SQLException, IOException, NoSuchAlgorithmException
+	{
+		BufferedInputStream bis;
+		try{
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			bis = new BufferedInputStream(connection.getInputStream());
+		}catch(IOException ioException){
+			throw new IOException("Exception while downloading file through http connection.");
+		}
+		
+		File newfile = new File(path + File.separator
+				+ hash);
+		
+		try{
+			BufferedOutputStream fos = new BufferedOutputStream(
+					new FileOutputStream(newfile));
+			int b;
+			while ((b = bis.read()) != -1) {
+				fos.write(b);
+			}
+			fos.flush();
+			fos.close();
+		}catch(IOException ioException){
+			throw new IOException("Error while writing data to file " + newfile);
+		}
+		
+		String correctHash=Util.getFileHash(newfile.getPath());
+		Entry e = new Entry(hash, newfile.length(), -1, newfile.getPath());
+		
+		if(!correctHash.equals(hash))
+		//the user-provided hash is incorrect, correct the hash in database and update its download status
+		{
+			l.warn("the provided hash "+hash+" is incorrect");
+			if(this.sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+			{
+				this.sqliteDLDatabase.deleteEntry(hash);
+				boolean deleteresult=newfile.delete();
+				if(!deleteresult)
+					throw new IOException("fail on deleting the redundant file "+newfile.getPath());
+			}		
+			this.sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.HTTP);
+			if(newfile.exists())
+				newfile.renameTo(new File(path + File.separator
+						+ correctHash));
+		}
+		else//the user-provided hash is correct, update download status
+		{
+			boolean flag = this.sqliteDLDatabase.updateDownloadStatus(e, Type.HTTP);
+			if(!flag)
+				throw new SQLException(
+					"The downloading image should have been logged");
+		}
+		return correctHash;
 	}
 
 	// this method will be invoked when bt downloading completes
-	public void callbackComplete(String entry) throws SQLException, ClassNotFoundException
+	public String callbackComplete(String entry) throws Exception
 	{
 		String hash = "";
 		String filesize = "";
@@ -307,32 +334,55 @@ public class BTDownload {
 			reference = items[2];
 			filepath = items[3];
 		}
-
+		
+		String correctHash=Util.getFileHash(filepath);
 		Entry e=new Entry(hash, Long.parseLong(filesize), Integer.parseInt(reference), filepath);
-		boolean flag = this.sqliteDLDatabase.updateDownloadStatus(e, Type.BT);
-
-		if (!flag)
-			throw new SQLException("The downloading image should have been logged");
+		
+		if(!correctHash.equals(hash) )//the user-provided hash is incorrect, correct the hash in database and update its download status
+		{
+			l.warn("the provided hash "+hash+" is incorrect");
+			if(this.sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+			{
+				this.sqliteDLDatabase.deleteEntry(hash);
+				deleteImageBT(hash, filepath);
+			}
+			this.sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.BT);
+			File newfile=new File(filepath);
+			if(newfile.exists())
+				newfile.renameTo(new File(BTDownload.DOWNLOADFOLDER + File.separator
+						+ correctHash));
+		}
+		else//the user-provided hash is correct, update download status
+		{
+			boolean flag = this.sqliteDLDatabase.updateDownloadStatus(e, Type.BT);
+			if(!flag)
+				throw new SQLException(
+					"The downloading image should have been logged");
+		}
+		return correctHash;
 	}
 
 	public native void initSession(String rootfolder);
 
-	public native void btdownloadfromURL(String surl, String path, String hash)
+	public native String btdownloadfromURL(String surl, String path, String hash)
 			throws Exception;
 
 	static {
 		System.loadLibrary("btclient"); // the bt c library we are hooking up
 	}
 
-	public String Download(String surl, String hash, boolean[] isDownloading) throws Exception
+	public Pair<String, String> Download(String surl, String hash, boolean[] isDownloading) throws Exception
 	// download image with given url and hash if it's not been cached now
-	// return the image path
+	// return a Pair of the image path and the image's correct hash
+	// if the correct hash is null, it means the image with correct hash is already cached
 	{
 		int isDeleted = this.controller(BTDownload.SPACESIZE, hash, surl,
 				isDownloading);
+		String correctHash=null;
 		if (isDeleted == 1) {
-			this.downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, hash);
+			correctHash=this.downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, hash);
 			l.info("Image " + hash + " finished downloading");
+			
 			// wake up the waiting threads for accomplishment of downloading
 			Entry removed = removeFromDLlist(hash);
 			if (removed != null) {
@@ -345,8 +395,9 @@ public class BTDownload {
 					"There isn't enough local space to download image " + hash);
 		} else{
 			l.info("Image " + hash + " is already cached");
+			correctHash=hash;
 		}
 
-		return BTDownload.DOWNLOADFOLDER + File.separator + hash;
+		return new Pair<String, String>(BTDownload.DOWNLOADFOLDER + File.separator + correctHash, correctHash);
 	}
 }

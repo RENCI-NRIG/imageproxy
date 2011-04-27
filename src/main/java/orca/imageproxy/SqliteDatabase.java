@@ -49,47 +49,6 @@ public class SqliteDatabase extends SqliteBase{
         logger.debug("Superblock created successfully");
     }
     
-    public synchronized Properties checkBundleGuid(String guid, boolean mark) throws SQLException{
-    	String query = "SELECT * FROM BUNDLE WHERE GUID = " + dbString(guid);
-    	Connection connection = getConnection();
-    	Statement statement = connection.createStatement();
-    	ResultSet rs = statement.executeQuery(query);
-    	try{
-    		if(rs.next()){
-        		Properties imageIds = new Properties();
-            	imageIds.put(Globals.FILE_SYSTEM_IMAGE_KEY, rs.getString("EMI"));
-            	if(rs.getString("EKI") != null){
-            		imageIds.put(Globals.KERNEL_IMAGE_KEY, rs.getString("EKI"));
-            	}
-            	if(rs.getString("ERI") != null){
-            		imageIds.put(Globals.RAMDISK_IMAGE_KEY, rs.getString("ERI"));
-            	}
-            	return imageIds;
-            }else{
-            	if(mark){
-            		query = "INSERT INTO BUNDLE VALUES ( " + dbString(guid) + " , " + dbString(Globals.IMAGE_INPROGRESS) + " , NULL, NULL)";
-            		this.executeUpdate(query);
-            	}
-            	return null;
-            }
-    	}finally {
-    		returnConnection(connection);
-    	}
-    }
-    
-    public synchronized int updateBundleGuid(String guid, Properties imageIds) throws SQLException{
-    	String query = "UPDATE BUNDLE SET EMI = " + dbString(imageIds.getProperty(Globals.FILE_SYSTEM_IMAGE_KEY)) + 
-			", EKI = " + dbString(imageIds.getProperty(Globals.KERNEL_IMAGE_KEY)) +
-			", ERI = " + dbString(imageIds.getProperty(Globals.RAMDISK_IMAGE_KEY)) +
-			" WHERE GUID = " + dbString(guid);
-    	return this.executeUpdate(query);
-    }
-    
-    public synchronized int removeBundleGuid(String guid) throws SQLException{
-    	String query = "DELETE FROM BUNDLE WHERE GUID = " + dbString(guid);
-    	return this.executeUpdate(query);
-    }
-    
     public synchronized String checkImageGuid(String guid, String type, boolean mark) throws SQLException{
     	String query = "SELECT * FROM IMAGE WHERE GUID = " + dbString(guid);
     	Connection connection = getConnection();
@@ -126,9 +85,7 @@ public class SqliteDatabase extends SqliteBase{
         	Statement statement = connection.createStatement();
             statement.setQueryTimeout(30);  // set timeout to 30 sec.
             
-            statement.executeUpdate("DROP TABLE IF EXISTS BUNDLE");
             statement.executeUpdate("DROP TABLE IF EXISTS IMAGE");
-            statement.executeUpdate("CREATE TABLE BUNDLE (GUID STRING, EMI STRING, EKI STRING, ERI STRING)");
             statement.executeUpdate("CREATE TABLE IMAGE (GUID STRING, IMAGE_ID STRING)");
             
             createSuperblock();
