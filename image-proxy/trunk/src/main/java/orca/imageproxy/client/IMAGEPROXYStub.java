@@ -489,50 +489,6 @@
                                }
                             
 
-                        /**
-                        * field for Guid
-                        */
-
-                        
-                                    protected java.lang.String localGuid ;
-                                
-                           /*  This tracker boolean wil be used to detect whether the user called the set method
-                          *   for this attribute. It will be used to determine whether to include this field
-                           *   in the serialized XML
-                           */
-                           protected boolean localGuidTracker = false ;
-                           
-
-                           /**
-                           * Auto generated getter method
-                           * @return java.lang.String
-                           */
-                           public  java.lang.String getGuid(){
-                               return localGuid;
-                           }
-
-                           
-                        
-                            /**
-                               * Auto generated setter method
-                               * @param param Guid
-                               */
-                               public void setGuid(java.lang.String param){
-                            
-                                       if (param != null){
-                                          //update the setting tracker
-                                          localGuidTracker = true;
-                                       } else {
-                                          localGuidTracker = true;
-                                              
-                                       }
-                                   
-                                            this.localGuid=param;
-                                    
-
-                               }
-                            
-
      /**
      * isReaderMTOMAware
      * @return true if the reader supports MTOM
@@ -659,40 +615,6 @@
 
                                         
                                                    xmlWriter.writeCharacters(localUrl);
-                                            
-                                          }
-                                    
-                                   xmlWriter.writeEndElement();
-                             } if (localGuidTracker){
-                                    namespace = "http://imageproxy.orca";
-                                    if (! namespace.equals("")) {
-                                        prefix = xmlWriter.getPrefix(namespace);
-
-                                        if (prefix == null) {
-                                            prefix = generatePrefix(namespace);
-
-                                            xmlWriter.writeStartElement(prefix,"guid", namespace);
-                                            xmlWriter.writeNamespace(prefix, namespace);
-                                            xmlWriter.setPrefix(prefix, namespace);
-
-                                        } else {
-                                            xmlWriter.writeStartElement(namespace,"guid");
-                                        }
-
-                                    } else {
-                                        xmlWriter.writeStartElement("guid");
-                                    }
-                                
-
-                                          if (localGuid==null){
-                                              // write the nil attribute
-                                              
-                                                     writeAttribute("xsi","http://www.w3.org/2001/XMLSchema-instance","nil","1",xmlWriter);
-                                                  
-                                          }else{
-
-                                        
-                                                   xmlWriter.writeCharacters(localGuid);
                                             
                                           }
                                     
@@ -865,12 +787,6 @@
                                  
                                          elementList.add(localUrl==null?null:
                                          org.apache.axis2.databinding.utils.ConverterUtil.convertToString(localUrl));
-                                    } if (localGuidTracker){
-                                      elementList.add(new javax.xml.namespace.QName("http://imageproxy.orca",
-                                                                      "guid"));
-                                 
-                                         elementList.add(localGuid==null?null:
-                                         org.apache.axis2.databinding.utils.ConverterUtil.convertToString(localGuid));
                                     }
 
                 return new org.apache.axis2.databinding.utils.reader.ADBXMLStreamReaderImpl(qName, elementList.toArray(), attribList.toArray());
@@ -958,33 +874,6 @@
                                     java.lang.String content = reader.getElementText();
                                     
                                               object.setUrl(
-                                                    org.apache.axis2.databinding.utils.ConverterUtil.convertToString(content));
-                                            
-                                       } else {
-                                           
-                                           
-                                           reader.getElementText(); // throw away text nodes if any.
-                                       }
-                                      
-                                        reader.next();
-                                    
-                              }  // End of if for expected property start element
-                                
-                                    else {
-                                        
-                                    }
-                                
-                                    
-                                    while (!reader.isStartElement() && !reader.isEndElement()) reader.next();
-                                
-                                    if (reader.isStartElement() && new javax.xml.namespace.QName("http://imageproxy.orca","guid").equals(reader.getName())){
-                                
-                                       nillableValue = reader.getAttributeValue("http://www.w3.org/2001/XMLSchema-instance","nil");
-                                       if (!"true".equals(nillableValue) && !"1".equals(nillableValue)){
-                                    
-                                    java.lang.String content = reader.getElementText();
-                                    
-                                              object.setGuid(
                                                     org.apache.axis2.databinding.utils.ConverterUtil.convertToString(content));
                                             
                                        } else {

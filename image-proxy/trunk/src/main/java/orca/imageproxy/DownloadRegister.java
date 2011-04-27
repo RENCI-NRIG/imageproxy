@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -55,15 +56,28 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 					}
 					imageId = db.checkImageGuid(guid, type, false);
 					if(imageId == null){
-						throw new Exception("Exception while downloading/registering image");
+						//throw new Exception("Exception while downloading/registering image");
+						return downloadAndRegister(imageInfo, type);
 					}
 				}
 			}else{
 				boolean[] downloadingflag = new boolean[1];
-				String imagePath;
+				String imagePath, hash;
 				
 				try{
-					imagePath = download(guid, url, downloadingflag);
+					Pair<String, String> downloadInfo = download(guid, url, downloadingflag);
+					imagePath = downloadInfo.getFirst();
+					hash = downloadInfo.getSecond();
+					
+					if(!guid.equals(hash)){
+						// change the registration status to finished so the image can be replaced by an incoming one
+						SqliteDLDatabase.getInstance().updateRegistrationStatus(hash);
+						db.removeImageGuid(guid, type);
+						Map<String, Pair<String, String>> newImageInfo = new HashMap<String, Pair<String,String>>();
+						newImageInfo.put(type, new Pair<String, String>(hash, url));
+						return downloadAndRegister(newImageInfo, type);
+					}
+					
 				}catch(Exception exception){
 					l.error("Exception while downloading image. Url: " + url);
 					throw exception;
@@ -75,13 +89,15 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 					}catch(Exception exception){
 						l.error("Exception while registering image.");
 						throw exception;
+					}finally{
+						// change the registration status to finished so the image can be replaced by an incoming one
+						SqliteDLDatabase.getInstance().updateRegistrationStatus(guid);
 					}
 				}
+				db.updateImageGuid(guid, imageId, type);
 			}
 			
 			l.info("Image Id: " + imageId);
-			
-			db.updateImageGuid(guid, imageId, type);
 			
 			return imageId;
 			
@@ -96,20 +112,20 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 	 * @param guid
 	 * @param url
 	 * @param downloadingflag
-	 * @return path of the downloaded file
+	 * @return path and hash of the downloaded file
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	private String download(String guid, String url, boolean[] downloadingflag) throws Exception {
+	private Pair<String, String> download(String guid, String url, boolean[] downloadingflag) throws Exception {
 		
 		l.info("Downloading file with guid: " + guid + " from url: " + url);
 		
 		// calling function to download file
-		String imagePath = btDownload.Download(url, guid, downloadingflag);
+		Pair<String, String> downloadInfo = btDownload.Download(url, guid, downloadingflag);
 		
-		l.info("File downloaded. Path: " + imagePath);
+		l.info("File downloaded. Path: " + downloadInfo.getFirst() + " , Hash: " + downloadInfo.getSecond());
 
-		return imagePath;
+		return downloadInfo;
 	}
 
 	/**
