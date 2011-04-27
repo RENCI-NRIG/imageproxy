@@ -209,7 +209,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
 	(*env)->ReleaseStringUTFChars(env, hash, filename);
 }
 
-JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
+JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
   (JNIEnv * env, jobject obj, jstring url, jstring path, jstring hash)
 {
 	int           error;
@@ -235,7 +235,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 		tr_torrentFree(tor);
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 		(*env)->ReleaseStringUTFChars(env, hash, filename);
-		return;
+		return NULL;
 	}
 
 	ctor = tr_ctorNew( h );
@@ -254,7 +254,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 		tr_torrentFree(tor);
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 		(*env)->ReleaseStringUTFChars(env, hash, filename);
-		return;
+		return NULL;
 	    }
     	tor = tr_torrentNew( ctor, &error );
     	tr_ctorFree( ctor );
@@ -273,7 +273,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 		tr_torrentFree(tor);
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 		(*env)->ReleaseStringUTFChars(env, hash, filename);
-		return;
+		return NULL;
     	}
 	else//change the name of download file
 	{
@@ -290,7 +290,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 			tr_torrentFree(tor);
 			(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 			(*env)->ReleaseStringUTFChars(env, hash, filename);
-			return;
+			return NULL;
 		}
 		if(tor->info.fileCount!=1)
 		{
@@ -302,7 +302,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 			tr_torrentFree(tor);
 			(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 			(*env)->ReleaseStringUTFChars(env, hash, filename);
-			return;
+			return NULL;
 		}
 		originalName=tor->info.files[0].name;
 		tor->info.files[0].name=filename;
@@ -314,13 +314,14 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
             	tr_torrentVerify( tor );
     	}
 	st = tr_torrentStat( tor );
+	jstring correctHash=NULL;
 	if(st->activity & TR_STATUS_SEED)
 	{
 		completeFlag=1;
 		char entry[strlen(filename)];
 		sprintf(entry, "%s", filename);
-		jmethodID mid=(*env)->GetMethodID(env, (*env)->GetObjectClass(env,obj), "callbackComplete", "(Ljava/lang/String;)V");
-		(*env)->CallVoidMethod(env, obj, mid, (*env)->NewStringUTF(env, entry));
+		jmethodID mid=(*env)->GetMethodID(env, (*env)->GetObjectClass(env,obj), "callbackComplete", "(Ljava/lang/String;)Ljava/lang/String;");
+		correctHash=(jstring)(*env)->CallObjectMethod(env, obj, mid, (*env)->NewStringUTF(env, entry));
 	}
 
 	while(!completeFlag)
@@ -342,11 +343,11 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 			if(originalName!=NULL)
 				tor->info.files[0].name=originalName;
 			tr_torrentFree(tor);
-			jmethodID mid=(*env)->GetMethodID(env, (*env)->GetObjectClass(env,obj), "callbackComplete", "(Ljava/lang/String;)V");
-			(*env)->CallVoidMethod(env, obj, mid, (*env)->NewStringUTF(env, entry));
+			jmethodID mid=(*env)->GetMethodID(env, (*env)->GetObjectClass(env,obj), "callbackComplete", "(Ljava/lang/String;)Ljava/lang/String;");
+			correctHash=(jstring)(*env)->CallObjectMethod(env, obj, mid, (*env)->NewStringUTF(env, entry));
 			(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 			(*env)->ReleaseStringUTFChars(env, hash, filename);
-			return;
+			return correctHash;
 		}
         	if( messageName[st->error] )
 		{
@@ -363,4 +364,5 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 	tr_torrentFree(tor);
 	(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 	(*env)->ReleaseStringUTFChars(env, hash, filename);
+	return correctHash;
 }

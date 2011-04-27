@@ -36,7 +36,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_initSession
  * Method:    btdownloadfromURL
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
+JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
   (JNIEnv *, jobject, jstring, jstring, jstring);
 
 #ifdef __cplusplus
