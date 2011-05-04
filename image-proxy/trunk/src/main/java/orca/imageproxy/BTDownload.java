@@ -28,6 +28,7 @@ public class BTDownload {
 
 	// hold the images which are still downloading
 	private LinkedList<Entry> downloadinglist;
+	private long existingdatasize;
 	private String errors;
 	
 	public final static String imageproxyHome = System.getenv("IMAGEPROXY_HOME");
@@ -69,6 +70,7 @@ public class BTDownload {
 		}
 		sqliteDLDatabase=SqliteDLDatabase.getInstance();
 		downloadinglist = new LinkedList<Entry>();
+		existingdatasize = SETTINGSIZE;
 		this.errors = "";
 		Properties p = Globals.getInstance().getProperties();
 		if (p.containsKey(spacesizeProperty)) {
@@ -239,7 +241,7 @@ public class BTDownload {
 				}
 				l.info(hash + " image's size is "+newfilesize+"B");
 				
-				long existingdatasize=this.sqliteDLDatabase.getExistingDataSize(SETTINGSIZE);
+				existingdatasize=this.sqliteDLDatabase.getExistingDataSize(existingdatasize);
 				l.info("the existing data size in local space is "+ existingdatasize);
 				l.info("the total space available for downloading images is "+spacesize);
 				
@@ -248,12 +250,19 @@ public class BTDownload {
 					if(e==null)
 						return -1;
 					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is going to be deleted");
-					
-					File file = new File(BTDownload.DOWNLOADFOLDER + File.separator + e.getHashcode());
-					boolean result = file.delete();
-					if (!result){
-						throw new IOException("Couldn't delete file " + e.getFilePath());
+					if(e.getFilePath().endsWith(".torrent"))
+					{
+						deleteImageBT(e.getHashcode(), e.getFilePath());
 					}
+					else
+					{
+						File file = new File(BTDownload.DOWNLOADFOLDER + File.separator + e.getHashcode());
+						boolean result = file.delete();
+						if (!result){
+							throw new IOException("Couldn't delete file " + e.getFilePath());
+						}
+					}
+					this.sqliteDLDatabase.deleteEntry(e.getHashcode());
 					existingdatasize -= e.getFilesize();
 					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is deleted");
 				}
