@@ -90,6 +90,23 @@ public class SqliteDLDatabase extends SqliteBase{
     	}
     }
     
+    public long getExistingDataSize(long size) throws SQLException
+    {
+    	String query = "SELECT SUM(FILESIZE) FROM "+imagestable;
+    	Connection connection = getConnection();
+    	try{
+    		Statement statement = connection.createStatement();
+    		ResultSet rs = statement.executeQuery(query);
+    		while(rs.next())
+    		{
+    			size+=rs.getLong(1);
+    		}
+    		return size;
+    	}finally{
+    		returnConnection(connection);
+    	}
+    }
+    
 	public int checkDownloadList(String hashcode) throws SQLException{
 		String query = "SELECT * FROM "+imagestable;
 		int flag=0;

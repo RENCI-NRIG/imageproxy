@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Properties;
 
 import javax.management.AttributeNotFoundException;
 
@@ -27,7 +28,6 @@ public class BTDownload {
 
 	// hold the images which are still downloading
 	private LinkedList<Entry> downloadinglist;
-	private long totalsize;
 	private String errors;
 	
 	public final static String imageproxyHome = System.getenv("IMAGEPROXY_HOME");
@@ -40,6 +40,7 @@ public class BTDownload {
 
 	// the total space size to cache images
 	public static long SPACESIZE = (long) Math.pow(2, 30);
+	public static String spacesizeProperty="spacesize";
 
 	private static BTDownload btdownload = null;
 	private SqliteDLDatabase sqliteDLDatabase;
@@ -68,8 +69,24 @@ public class BTDownload {
 		}
 		sqliteDLDatabase=SqliteDLDatabase.getInstance();
 		downloadinglist = new LinkedList<Entry>();
-		totalsize = SETTINGSIZE;
 		this.errors = "";
+		Properties p = Globals.getInstance().getProperties();
+		if (p.containsKey(spacesizeProperty)) {
+			String spacesizeString=p.getProperty(spacesizeProperty);
+			if(spacesizeString!=null) {
+				int factor = 1;
+				try{
+					factor = Integer.parseInt(spacesizeString);
+				}catch(NumberFormatException e){
+					throw new NumberFormatException("can't recognize the number format of property spacesize.");
+				}
+				if(factor > 0)
+					BTDownload.SPACESIZE = BTDownload.SPACESIZE * factor;
+				else
+					throw new NumberFormatException("the spacesize should be larger than 0.");
+			}
+		}
+		l.info("the local space size is "+SPACESIZE+"B.");
 		new File(BTDownload.DOWNLOADFOLDER).mkdir();
 		initSession(imageproxyHome);
 		//clear the downloading images
@@ -222,22 +239,23 @@ public class BTDownload {
 				}
 				l.info(hash + " image's size is "+newfilesize+"B");
 				
-				if (totalsize + newfilesize > spacesize) {
-					do {
-						Entry e = this.sqliteDLDatabase.getMostStaleEntry();
-						if(e==null)
-							return -1;
-						l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is going to be deleted");
-						
-						File file = new File(BTDownload.DOWNLOADFOLDER + File.separator + hash);
-						boolean result = file.delete();
-						if (!result){
-							throw new IOException("Couldn't delete file " + e.getFilePath());
-						}
-						totalsize -= e.getFilesize();
-						l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is deleted");
-						
-					} while (totalsize + newfilesize > spacesize);
+				long existingdatasize=this.sqliteDLDatabase.getExistingDataSize(SETTINGSIZE);
+				l.info("the existing data size in local space is "+ existingdatasize);
+				l.info("the total space available for downloading images is "+spacesize);
+				
+				while (existingdatasize + newfilesize > spacesize) {
+					Entry e = this.sqliteDLDatabase.getMostStaleEntry();
+					if(e==null)
+						return -1;
+					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is going to be deleted");
+					
+					File file = new File(BTDownload.DOWNLOADFOLDER + File.separator + e.getHashcode());
+					boolean result = file.delete();
+					if (!result){
+						throw new IOException("Couldn't delete file " + e.getFilePath());
+					}
+					existingdatasize -= e.getFilesize();
+					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is deleted");
 				}
 				Entry entry = new Entry(hash, newfilesize, 0, surl);
 				this.sqliteDLDatabase.insertEntry(entry);
@@ -414,8 +432,7 @@ public class BTDownload {
 				}
 			}
 		} else if (isDeleted == -1){
-			throw new OutOfMemoryError(
-					"There isn't enough local space to download image " + hash);
+			throw new IOException("There isn't enough local space to download image " + hash);
 		} else{
 			l.info("Image " + hash + " is already cached");
 			correctHash=hash;
