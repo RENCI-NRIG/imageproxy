@@ -1,4 +1,4 @@
-package orca.imageproxy;
+package orca.imageproxy; 
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -426,27 +426,31 @@ public class BTDownload {
 	// return a Pair of the image path and the image's correct hash
 	// if the correct hash is null, it means the image with correct hash is already cached
 	{
-		int isDeleted = this.controller(BTDownload.SPACESIZE, hash, surl,
-				isDownloading);
 		String correctHash=null;
-		if (isDeleted == 1) {
-			correctHash=this.downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, hash);
-			l.info("Image " + hash + " finished downloading");
+		try{
+			int isDeleted = this.controller(BTDownload.SPACESIZE, hash, surl,
+				isDownloading);
+			if (isDeleted == 1) {
+				correctHash=this.downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, hash);
+				l.info("Image " + hash + " finished downloading");
 			
-			// wake up the waiting threads for accomplishment of downloading
-			Entry removed = removeFromDLlist(hash);
-			if (removed != null) {
-				synchronized (removed) {
-					removed.notifyAll();
+				// wake up the waiting threads for accomplishment of downloading
+				Entry removed = removeFromDLlist(hash);
+				if (removed != null) {
+					synchronized (removed) {
+						removed.notifyAll();
+					}
 				}
+			} else if (isDeleted == -1){
+				throw new IOException("There isn't enough local space to download image " + hash);
+			} else{
+				l.info("Image " + hash + " is already cached");
+				correctHash=hash;
 			}
-		} else if (isDeleted == -1){
-			throw new IOException("There isn't enough local space to download image " + hash);
-		} else{
-			l.info("Image " + hash + " is already cached");
-			correctHash=hash;
+		}catch(Exception e){
+			this.sqliteDLDatabase.deleteEntry(hash);
+			throw e;
 		}
-
 		return new Pair<String, String>(BTDownload.DOWNLOADFOLDER + File.separator + correctHash, correctHash);
 	}
 }
