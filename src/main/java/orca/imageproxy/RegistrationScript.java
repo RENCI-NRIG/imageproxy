@@ -50,21 +50,6 @@ public class RegistrationScript {
 			db = SqliteDatabase.getInstance();
 			l = Logger.getLogger(this.getClass());
 			Properties p = Globals.getInstance().getProperties();
-			if (p.containsKey(spacesizeProperty)) {
-				String spacesizeString=p.getProperty(spacesizeProperty);
-				if(spacesizeString!=null) {
-					int factor = 1;
-					try{
-						factor = Integer.parseInt(spacesizeString);
-					}catch(NumberFormatException e){
-						throw new NumberFormatException("can't recognize the number format of property spacesize.");
-					}
-					if(factor > 0)
-						BTDownload.SPACESIZE = BTDownload.SPACESIZE * factor;
-					else
-						throw new NumberFormatException("the spacesize should be larger than 0.");
-				}
-			}
 			if (p.containsKey(testModeProperty)) {
 				String testModeString = p.getProperty(testModeProperty);
 				if (testModeString.toLowerCase().equals("true") || 
