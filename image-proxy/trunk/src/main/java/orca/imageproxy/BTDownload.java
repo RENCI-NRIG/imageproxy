@@ -179,47 +179,51 @@ public class BTDownload {
 	public native String getFileLength(String bt_url, String download_folder)
 			throws Exception;
 
-	private synchronized int controller(long spacesize, String hash, String surl,
+	/**
+	 * 
+	 * @param spacesize
+	 * @param fileSignature
+	 * @param surl
+	 * @param isDownloading
+	 * @return 1 if it's not cached and can be downloaded
+	 * @return 0 if file is available in the cache
+	 * @return -1 if it's not cached and the disk space is not large enough to store it
+	 * @throws Exception
+	 */
+	private synchronized int controller(long spacesize, String fileSignature, String surl,
 			boolean[] isDownloading) throws Exception
-	// check if a file is still cached
-	// return 1 if it's not cached and can be downloaded, return 0 if it's still
-	// cached
-	// if this file needs to be downloaded again, make enough space for the
-	// ensuing download
-	// return -1 if it's not cached and the disk space is not large enough to
-	// store it
 	{
 
-		int value = this.sqliteDLDatabase.checkDownloadList(hash);
+		int value = this.sqliteDLDatabase.checkDownloadList(fileSignature);
 		if (value != 0)// downloading or downloaded
 		{
 			if (value == 1)// downloaded
 				return 0;
 			else {
-				Entry downloadingentry=getEntryFromDLList(hash);
+				Entry downloadingentry=getEntryFromDLList(fileSignature);
 				if(downloadingentry==null)
 					throw new NullPointerException("the downloading entry should have been added to the downloading list");
 				synchronized (downloadingentry) {
-					l.info(hash + " is downloading");
+					l.info(fileSignature + " is downloading");
 					isDownloading[0] = true;
 					downloadingentry.wait();
 				}
-				return controller(spacesize, hash, surl, isDownloading);
+				return controller(spacesize, fileSignature, surl, isDownloading);
 			}
 		} else {
 				Entry downloadingentry = new Entry();
-				downloadingentry.setHashcode(hash);
+				downloadingentry.setHashcode(fileSignature);
 				addToDLlist(downloadingentry);
 				
 				URL url = new URL(surl);
 				String filename = url.getFile();
-				String type="";
+				String type = null;
 				
-				if(filename.lastIndexOf(".")>=0)
-					type= filename.substring(filename.lastIndexOf("."));
+				if(filename.lastIndexOf(".") >= 0)
+					type = filename.substring(filename.lastIndexOf("."));
 				
 				long newfilesize = 0;
-				if (type.equals(".torrent")) {
+				if ((".torrent").equals(type)) {
 					String result=getFileLength(surl, BTDownload.DOWNLOADFOLDER);
 					int len_start=result.lastIndexOf(".torrent")+".torrent".length();
 					long length=Long.parseLong(result.substring(len_start));
@@ -231,15 +235,26 @@ public class BTDownload {
 					}
 					
 				} else {
-					HttpURLConnection urlcon=(HttpURLConnection)url.openConnection();
-					String fileLength=urlcon.getHeaderField("content-Length");
-					long length=Long.parseLong(fileLength);
-					if(length<=0)
-						throw new Exception("fail on parsing the length of the image file");
-					newfilesize += length;
+					HttpURLConnection urlcon = (HttpURLConnection)url.openConnection();
+					try{
+						urlcon.connect();
+					}catch(Exception exception){
+						throw new Exception("Unable to connect to " + url);
+					}
+					
+					try{
+						String fileLength = urlcon.getHeaderField("content-Length");
+						long length = Long.parseLong(fileLength);
+						if(length <= 0)
+							throw new Exception("fail on parsing the length of the image file");
+						newfilesize += length;
+					}catch(Exception exception){
+						throw new Exception("Could not fetch file size for " + url);
+					}
+					
 					urlcon.disconnect();
 				}
-				l.info(hash + " image's size is "+newfilesize+"B");
+				l.info(fileSignature + " image's size is "+newfilesize+"B");
 				
 				existingdatasize=this.sqliteDLDatabase.getExistingDataSize(existingdatasize);
 				l.info("the existing data size in local space is "+ existingdatasize);
@@ -266,7 +281,7 @@ public class BTDownload {
 					existingdatasize -= e.getFilesize();
 					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is deleted");
 				}
-				Entry entry = new Entry(hash, newfilesize, 0, surl);
+				Entry entry = new Entry(fileSignature, newfilesize, 0, surl);
 				this.sqliteDLDatabase.insertEntry(entry);
 			return 1;
 		}
@@ -421,36 +436,40 @@ public class BTDownload {
 		System.loadLibrary("btclient"); // the bt c library we are hooking up
 	}
 
-	public Pair<String, String> Download(String surl, String hash, boolean[] isDownloading) throws Exception
-	// download image with given url and hash if it's not been cached now
-	// return a Pair of the image path and the image's correct hash
-	// if the correct hash is null, it means the image with correct hash is already cached
+	/**
+	 * function to download image with given url and signature if it's not already cached
+	 * @param surl
+	 * @param signature
+	 * @param isDownloading
+	 * @return a Pair of the image path and the image's correct hash
+	 * @throws Exception
+	 */
+	public Pair<String, String> Download(String surl, String signature, boolean[] isDownloading) throws Exception
 	{
-		String correctHash=null;
+		String correctSign = null;
 		try{
-			int isDeleted = this.controller(BTDownload.SPACESIZE, hash, surl,
-				isDownloading);
+			int isDeleted = this.controller(BTDownload.SPACESIZE, signature, surl, isDownloading);
 			if (isDeleted == 1) {
-				correctHash=this.downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, hash);
-				l.info("Image " + hash + " finished downloading");
+				correctSign = this.downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, signature);
+				l.info("Image " + signature + " finished downloading");
 			
 				// wake up the waiting threads for accomplishment of downloading
-				Entry removed = removeFromDLlist(hash);
+				Entry removed = removeFromDLlist(signature);
 				if (removed != null) {
 					synchronized (removed) {
 						removed.notifyAll();
 					}
 				}
 			} else if (isDeleted == -1){
-				throw new IOException("There isn't enough local space to download image " + hash);
+				throw new IOException("There isn't enough local space to download image " + signature);
 			} else{
-				l.info("Image " + hash + " is already cached");
-				correctHash=hash;
+				l.info("Image " + signature + " is already cached");
+				correctSign=signature;
 			}
 		}catch(Exception e){
-			this.sqliteDLDatabase.deleteEntry(hash);
+			this.sqliteDLDatabase.deleteEntry(signature);
 			throw e;
 		}
-		return new Pair<String, String>(BTDownload.DOWNLOADFOLDER + File.separator + correctHash, correctHash);
+		return new Pair<String, String>(BTDownload.DOWNLOADFOLDER + File.separator + correctSign, correctSign);
 	}
 }

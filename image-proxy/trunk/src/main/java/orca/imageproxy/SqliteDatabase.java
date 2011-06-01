@@ -49,7 +49,7 @@ public class SqliteDatabase extends SqliteBase{
         logger.debug("Superblock created successfully");
     }
     
-    public synchronized String checkImageGuid(String guid, String type, boolean mark) throws SQLException{
+    public synchronized String checkImageSign(String guid, String type, boolean mark) throws SQLException{
     	String query = "SELECT * FROM IMAGE WHERE GUID = " + dbString(guid);
     	Connection connection = getConnection();
     	try{
@@ -69,12 +69,12 @@ public class SqliteDatabase extends SqliteBase{
     	}
     }
     
-    public synchronized int updateImageGuid(String guid, String imageId, String type) throws SQLException{
+    public synchronized int updateImageInfo(String guid, String imageId, String type) throws SQLException{
     	String query = "UPDATE IMAGE SET IMAGE_ID = " + dbString(imageId) + " WHERE GUID = " + dbString(guid);
     	return this.executeUpdate(query);
     }
     
-    public synchronized int removeImageGuid(String guid, String type) throws SQLException{
+    public synchronized int removeImageInfo(String guid, String type) throws SQLException{
     	String query = "DELETE FROM IMAGE WHERE GUID = " + dbString(guid);
     	return this.executeUpdate(query);
     }

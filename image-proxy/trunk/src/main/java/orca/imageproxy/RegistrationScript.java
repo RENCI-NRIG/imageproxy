@@ -1,8 +1,8 @@
 package orca.imageproxy;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,8 +32,6 @@ public class RegistrationScript {
 	protected static final String bukkitNameProperty = "eucaBukkitName";
 	
 	protected static final String DEFAULT_BUKKIT_NAME = "imageproxy.bukkit";
-	
-	private static final String spacesizeProperty = "spacesize";
 	
 	protected BTDownload btDownload;
 
@@ -70,10 +68,10 @@ public class RegistrationScript {
 	/**
 	 * Method to register images
 	 * @param url  url for image metadata
-	 * @param guid hash of the image, to uniquely identify it
+	 * @param signature hash of the image, to uniquely identify it
 	 * @return registered image ids, ERROR in case of any exception
 	 */
-	public String RegisterImage(String url) {
+	public String RegisterImage(String url, String signature) throws Exception{
 
 		try{
 
@@ -97,16 +95,28 @@ public class RegistrationScript {
 				
 			} else {
 				
+				boolean[] downloadingflag = new boolean[1];
+				Pair<String, String> downloadInfo = download(signature, url, downloadingflag);
+				String imagePath = downloadInfo.getFirst();
+				String hash = downloadInfo.getSecond();
+				
+				if(!hash.equals(signature)){
+					throw new Exception("Signature mismatch for metadata file.");
+				}
+				
 				String emi, eki, eri;
 				
 				try{
 					l.info("Entering download and registration process");
 					
-					Map<String, Pair<String, String>> imageInfo = parseMetadata(url);
+					Map<String, Pair<String, String>> imageInfo = parseMetadata(imagePath);
+					
+					SqliteDLDatabase.getInstance().updateRegistrationStatus(signature);
 					
 					if(!imageInfo.containsKey(Globals.FILE_SYSTEM_IMAGE_KEY)){
 						l.error("Valid filesystem image information could not be found in the metadata.");
-						return Globals.ERROR_CODE;
+						//return Globals.ERROR_CODE;
+						throw new Exception("Valid filesystem image information could not be found in the metadata.");
 					}
 						
 					HashMap<String, Future<String>> downloadRegisterTasks = new HashMap<String, Future<String>>();
@@ -140,7 +150,8 @@ public class RegistrationScript {
 					
 				}catch(Exception exception){
 					l.error(exception.toString(), exception);
-					return Globals.ERROR_CODE;
+					//return Globals.ERROR_CODE;
+					throw exception;
 				}
 				
 			}
@@ -157,7 +168,8 @@ public class RegistrationScript {
 			
 		}catch(Exception exception){
 			l.error(exception.toString(), exception);
-			return Globals.ERROR_CODE;
+			//return Globals.ERROR_CODE;
+			throw exception;
 		}
 	}
 	
@@ -176,11 +188,11 @@ public class RegistrationScript {
 	
 	/**
 	 * 
-	 * @param metadataUrl
+	 * @param metadataFilePath
 	 * @return
 	 * @throws Exception
 	 */
-	private Map<String, Pair<String, String>> parseMetadata(String metadataUrl) throws Exception{
+	private Map<String, Pair<String, String>> parseMetadata(String metadataFilePath) throws Exception{
 		
 		List<String> validImageTypes = new ArrayList<String>();
 		validImageTypes.add(Globals.FILE_SYSTEM_IMAGE_KEY);
@@ -194,7 +206,7 @@ public class RegistrationScript {
 			DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 			DocumentBuilder db = dbf.newDocumentBuilder();
 		  
-			Document doc = db.parse(new URL(metadataUrl).openStream());
+			Document doc = db.parse(new File(metadataFilePath));
 			doc.getDocumentElement().normalize();
 		  
 			l.info("Root element " + doc.getDocumentElement().getNodeName());
@@ -203,7 +215,7 @@ public class RegistrationScript {
 			
 			NodeList imgNodeList = doc.getElementsByTagName("image");
 			
-			String type, guid, url;
+			String type, signature, url;
 			
 			for (int itr = 0; itr < imgNodeList.getLength(); itr++) {
 
@@ -224,14 +236,14 @@ public class RegistrationScript {
 						continue;
 					}
 					
-					NodeList imgGuidElmntLst = imgElmnt.getElementsByTagName("guid");
-					Element imgGuidElmnt = (Element) imgGuidElmntLst.item(0);
-					NodeList imgGuid = imgGuidElmnt.getChildNodes();
-					if(imgGuid.getLength()!=0 && !((Node) imgGuid.item(0)).getNodeValue().trim().equals("")){
-						guid = ((Node) imgGuid.item(0)).getNodeValue();
-						l.info("Guid : " + guid);
+					NodeList imgSignElmntLst = imgElmnt.getElementsByTagName("signature");
+					Element imgSignElmnt = (Element) imgSignElmntLst.item(0);
+					NodeList imgSign = imgSignElmnt.getChildNodes();
+					if(imgSign.getLength()!=0 && !((Node) imgSign.item(0)).getNodeValue().trim().equals("")){
+						signature = ((Node) imgSign.item(0)).getNodeValue();
+						l.info("Signature : " + signature);
 					}else{
-						l.info("Invalid Guid");
+						l.info("Invalid Signature");
 						continue;
 					}
 					
@@ -246,7 +258,7 @@ public class RegistrationScript {
 						continue;
 					}
 					
-					imageInfo.put(type, new Pair<String, String>(guid, url));
+					imageInfo.put(type, new Pair<String, String>(signature, url));
 				}
 			}
 			
@@ -256,6 +268,27 @@ public class RegistrationScript {
 		}
 		
 		return imageInfo;
+	}
+	
+	/**
+	 * Calls the functions to download the required file
+	 * @param signature
+	 * @param url
+	 * @param downloadingflag
+	 * @return signature and url of the file to be downloaded
+	 * @throws IOException 
+	 * @throws InterruptedException 
+	 */
+	private Pair<String, String> download(String signature, String url, boolean[] downloadingflag) throws Exception {
+		
+		l.info("Downloading file with signautre: " + signature + " from url: " + url);
+		
+		// calling function to download file
+		Pair<String, String> downloadInfo = btDownload.Download(url, signature, downloadingflag);
+		
+		l.info("File downloaded. Path: " + downloadInfo.getFirst() + " , Signature: " + downloadInfo.getSecond());
+
+		return downloadInfo;
 	}
 	
 	/**
