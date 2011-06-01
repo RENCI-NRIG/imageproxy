@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -32,21 +31,21 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 	 */
 	private String downloadAndRegister(Map<String, Pair<String, String>> imageInfo, String type) throws Exception{
 		
-		String guid = imageInfo.get(type).getFirst();
+		String signature = imageInfo.get(type).getFirst();
 		String url = imageInfo.get(type).getSecond();
 		
-		l.info("Download and register, Guid: " + guid + ", Url: " + url + ", Type: " + type);
+		l.info("Download and register, Signature: " + signature + ", Url: " + url + ", Type: " + type);
 		
 		try{
 			
-			// see if this guid is present in registry
-			String imageId = db.checkImageGuid(guid, type, true);
+			// see if this file with given signature is present in registry
+			String imageId = db.checkImageSign(signature, type, true);
 
 			// null means we get to load it, otherwise wait and return eki
 			if (imageId != null) {
 				// wait for other threads to load the image
 				while (Globals.IMAGE_INPROGRESS.equals(imageId)) {
-					l.info("Someone is downloading. Waiting for image " + guid + " to load");
+					l.info("Someone is downloading. Waiting for image to load");
 					try {
 						// TODO: should replace this with condition variables instead of
 						// polling
@@ -54,7 +53,7 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 					} catch (InterruptedException e) {
 						;
 					}
-					imageId = db.checkImageGuid(guid, type, false);
+					imageId = db.checkImageSign(signature, type, false);
 					if(imageId == null){
 						//throw new Exception("Exception while downloading/registering image");
 						return downloadAndRegister(imageInfo, type);
@@ -65,17 +64,12 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 				String imagePath, hash;
 				
 				try{
-					Pair<String, String> downloadInfo = download(guid, url, downloadingflag);
+					Pair<String, String> downloadInfo = download(signature, url, downloadingflag);
 					imagePath = downloadInfo.getFirst();
 					hash = downloadInfo.getSecond();
 					
-					if(!guid.equals(hash)){
-						// change the registration status to finished so the image can be replaced by an incoming one
-						SqliteDLDatabase.getInstance().updateRegistrationStatus(hash);
-						db.removeImageGuid(guid, type);
-						Map<String, Pair<String, String>> newImageInfo = new HashMap<String, Pair<String,String>>();
-						newImageInfo.put(type, new Pair<String, String>(hash, url));
-						return downloadAndRegister(newImageInfo, type);
+					if(!signature.equals(hash)){
+						throw new Exception("Signature mismatch for image file.");
 					}
 					
 				}catch(Exception exception){
@@ -91,10 +85,10 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 						throw exception;
 					}finally{
 						// change the registration status to finished so the image can be replaced by an incoming one
-						SqliteDLDatabase.getInstance().updateRegistrationStatus(guid);
+						SqliteDLDatabase.getInstance().updateRegistrationStatus(signature);
 					}
 				}
-				db.updateImageGuid(guid, imageId, type);
+				db.updateImageInfo(signature, imageId, type);
 			}
 			
 			l.info("Image Id: " + imageId);
@@ -102,26 +96,26 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 			return imageId;
 			
 		}catch(Exception exception){
-			db.removeImageGuid(guid, type);
+			db.removeImageInfo(signature, type);
 			throw exception;
 		}
 	}
 	
 	/**
 	 * Calls the functions to download the required file
-	 * @param guid
+	 * @param signature
 	 * @param url
 	 * @param downloadingflag
 	 * @return path and hash of the downloaded file
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	private Pair<String, String> download(String guid, String url, boolean[] downloadingflag) throws Exception {
+	private Pair<String, String> download(String signature, String url, boolean[] downloadingflag) throws Exception {
 		
-		l.info("Downloading file with guid: " + guid + " from url: " + url);
+		l.info("Downloading file with Signature: " + signature + " from url: " + url);
 		
 		// calling function to download file
-		Pair<String, String> downloadInfo = btDownload.Download(url, guid, downloadingflag);
+		Pair<String, String> downloadInfo = btDownload.Download(url, signature, downloadingflag);
 		
 		l.info("File downloaded. Path: " + downloadInfo.getFirst() + " , Hash: " + downloadInfo.getSecond());
 
