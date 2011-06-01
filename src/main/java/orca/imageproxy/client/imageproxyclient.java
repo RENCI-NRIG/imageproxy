@@ -32,7 +32,7 @@ public class imageproxyclient {
 				i++;
 				paralength++;
 			}
-			else if(args[i].equals("--guid")||args[i].equals("-g"))
+			else if(args[i].equals("--signature")||args[i].equals("-s"))
 			{
 				if(i+1>=args.length)
 				{
@@ -42,7 +42,7 @@ public class imageproxyclient {
 				}
 				if(parameters[1]!=null)
 				{
-					System.err.println("too many hash parameters, only one hash parameter is acceptable.");
+					System.err.println("too many signature parameters, only one signature parameter is acceptable.");
 					System.err.println("try --help for more information.");
 					return null;
 				}
@@ -57,9 +57,10 @@ public class imageproxyclient {
 				System.out.println();
 				System.out.println("Mandatory arguments to long options are mandatory for short options too.");
 				System.out.println("-u, --url			url of metadata file");
+				System.out.println("-s, --signature			SHA1 hash of metadata file");
 				System.out.println("-t, --timeout			the maximum timeout to the connection of server, " +
 														"exceeding which the connection will be stopped.");
-				System.out.println("-p, --proxy         URL of the ImageProxy installation");
+				System.out.println("-p, --proxy			URL of the ImageProxy installation");
 				return null;
 			}
 			else if(args[i].equals("--timeout")||args[i].equals("-t"))
@@ -96,8 +97,8 @@ public class imageproxyclient {
 		}
 		if(paralength!=3)
 		{
-			System.err.println("invalid parameters, please check.");
-			System.err.println("try --help for more information.");
+			System.err.println("Invalid parameters, please check.");
+			System.err.println("Try --help for more information.");
 			return null;
 		}
 		return parameters;
