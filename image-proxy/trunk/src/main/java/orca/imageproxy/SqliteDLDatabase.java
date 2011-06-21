@@ -75,7 +75,7 @@ public class SqliteDLDatabase extends SqliteBase{
 		return flag;
 	}
     
-    public boolean isExisted(String image_guid) throws SQLException
+    public synchronized boolean isExisted(String image_guid) throws SQLException
     {
     	String query="SELECT * FROM "+imagestable+" WHERE GUID="+dbString(image_guid);
     	Connection connection = getConnection();
@@ -90,7 +90,7 @@ public class SqliteDLDatabase extends SqliteBase{
     	}
     }
     
-    public long getExistingDataSize(long size) throws SQLException
+    public synchronized long getExistingDataSize(long size) throws SQLException
     {
     	String query = "SELECT SUM(FILESIZE) FROM "+imagestable;
     	Connection connection = getConnection();
@@ -142,7 +142,7 @@ public class SqliteDLDatabase extends SqliteBase{
     	return flag;
 	}
 	
-	public Entry getMostStaleEntry() throws SQLException{
+	public synchronized Entry getMostStaleEntry() throws SQLException{
 		String query = "SELECT * FROM "+moststaleview;
 		Connection connection = getConnection();
 		try{
@@ -163,18 +163,18 @@ public class SqliteDLDatabase extends SqliteBase{
 		}
 	}
 	
-	public void updateRefNum(short newRef, String guid, Connection connection) throws SQLException{
+	public synchronized void updateRefNum(short newRef, String guid, Connection connection) throws SQLException{
 		String query = "UPDATE "+imagestable+" SET REF="+newRef+" WHERE GUID="+dbString(guid);
 		this.executeUpdate(query, connection);
 	}
 	
-	public int deleteEntry(String guid) throws SQLException
+	public synchronized int deleteEntry(String guid) throws SQLException
 	{
 		String query = "DELETE FROM "+imagestable+" WHERE GUID="+dbString(guid);
 		return this.executeUpdate(query);
 	}
 	
-	public void insertEntry(Entry e) throws SQLException, NullPointerException{
+	public synchronized void insertEntry(Entry e) throws SQLException, NullPointerException{
 		if(e==null)
 			throw new NullPointerException("a valid entry should be inserted into the database");
 		String query = "INSERT INTO "+imagestable+" VALUES ("+dbString(e.getHashcode())+", "+0+", "+
@@ -182,7 +182,7 @@ public class SqliteDLDatabase extends SqliteBase{
 		this.executeUpdate(query);
 	}
 	
-	public boolean updateDownloadStatus(Entry entry, BTDownload.Type type) throws SQLException
+	public synchronized boolean updateDownloadStatus(Entry entry, BTDownload.Type type) throws SQLException
 	{
 		String query=null;
 		if(type==BTDownload.Type.HTTP)
@@ -223,13 +223,13 @@ public class SqliteDLDatabase extends SqliteBase{
 
 	}
 	
-	public void updateRegistrationStatus(String guid) throws SQLException
+	public synchronized void updateRegistrationStatus(String guid) throws SQLException
 	{
 		String query="UPDATE "+imagestable+" SET UNBUNDLING=0 WHERE GUID="+dbString(guid);
 		this.executeUpdate(query);
 	}
 	
-	public void deleteDownloadingEntries(Connection connection) throws SQLException{
+	public synchronized void deleteDownloadingEntries(Connection connection) throws SQLException{
 		String query = "DELETE FROM "+imagestable+" WHERE STATUS=0";
 		this.executeUpdate(query, connection);
 	}
