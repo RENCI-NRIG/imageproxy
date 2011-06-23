@@ -281,7 +281,7 @@ public class RegistrationScript {
 	 */
 	private Pair<String, String> download(String signature, String url, boolean[] downloadingflag) throws Exception {
 		
-		l.info("Downloading file with signautre: " + signature + " from url: " + url);
+		l.info("Downloading file with signature: " + signature + " from url: " + url);
 		
 		// calling function to download file
 		Pair<String, String> downloadInfo = btDownload.Download(url, signature, downloadingflag);

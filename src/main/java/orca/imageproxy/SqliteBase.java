@@ -87,23 +87,13 @@ public class SqliteBase {
         return DriverManager.getConnection(source + db);
     }
 
-    /**
-     * Return the connection to the pool
-     * @param connection
-     * @throws SQLException
-     */
-    public void returnConnection(Connection connection) throws SQLException
-    {
-        connection.close();
-    }
-    
     public void initialize() throws ClassNotFoundException, SQLException, IOException
     {
         if (!initialized) {
             
             loadDrivers();
 
-            checkDb();
+            checkDB();
             
             initialized = true;
         }
@@ -128,33 +118,24 @@ public class SqliteBase {
      * Checks the database and resets it if needed.
      * @throws Exception
      */
-    protected void checkDb() throws SQLException, IOException
+    protected void checkDB() throws SQLException, IOException
     {
-        Connection connection = getConnection();
-        try {
-            if (resetState) {
-                resetDB(connection);
-            }
-        } finally {
-            returnConnection(connection);
-        }
+	    if (resetState) resetDB();
     }
     
-    protected int executeUpdate(String query) throws SQLException{
+    protected synchronized int executeUpdate(String query) throws SQLException{
     	Connection connection = getConnection();
-    	Statement statement;
-    	try{
-    		statement = connection.createStatement();
-    		return statement.executeUpdate(query);
-    	}finally {
-    		returnConnection(connection);
-    	}
-    }
-    
-    protected int executeUpdate(String query, Connection connection) throws SQLException{
-    	Statement statement;
-    	statement = connection.createStatement();
-    	return statement.executeUpdate(query);
+
+	try {
+    		Statement statement = connection.createStatement();
+		try {
+			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
+			int rv = statement.executeUpdate(query);
+			return rv;
+		}
+		finally { statement.close(); }
+	}
+	finally { connection.close(); }
     }
     
     /**
@@ -162,11 +143,11 @@ public class SqliteBase {
      * @param connection
      * @throws SQLException
      */
-    protected void resetDB(Connection connection) throws SQLException, IOException
+    protected void resetDB() throws SQLException, IOException
     {
     }
     
-    public String getDb()
+    public String getDB()
     {
         return db;
     }

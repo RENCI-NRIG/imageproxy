@@ -44,19 +44,20 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 			// null means we get to load it, otherwise wait and return eki
 			if (imageId != null) {
 				// wait for other threads to load the image
-				while (Globals.IMAGE_INPROGRESS.equals(imageId)) {
-					l.info("Someone is downloading. Waiting for image to load");
-					try {
-						// TODO: should replace this with condition variables instead of
-						// polling
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						;
-					}
-					imageId = db.checkImageSign(signature, type, false);
-					if(imageId == null){
-						//throw new Exception("Exception while downloading/registering image");
-						return downloadAndRegister(imageInfo, type);
+				synchronized(db) {
+					while (Globals.IMAGE_INPROGRESS.equals(imageId)) {
+						l.info("Image download in progress; awaiting completion.");
+						try {
+							db.wait();
+						} catch (InterruptedException e) {
+							;
+						}
+						l.info("Received signal that image download is complete.");
+						imageId = db.checkImageSign(signature, type, false);
+						if(imageId == null){
+							//throw new Exception("Exception while downloading/registering image");
+							return downloadAndRegister(imageInfo, type);
+						}
 					}
 				}
 			}else{
@@ -89,6 +90,9 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 					}
 				}
 				db.updateImageInfo(signature, imageId, type);
+				synchronized (db) {
+					db.notifyAll();
+				}
 			}
 			
 			l.info("Image Id: " + imageId);

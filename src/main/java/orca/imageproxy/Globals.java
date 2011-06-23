@@ -14,6 +14,7 @@ public class Globals {
 	public static final String proxySettingProperties="orca.imageproxy.imageproxy-settings";
 	public static final String SuperblockLocation = "db_registry_state_recovery.lock";
 	public static final String DLSuperblockLocation = "db_download_state_recovery.lock";
+	public static final int JDBC_OPERATION_TIMEOUT = 30;
 	
 	public static final String FILE_SYSTEM_IMAGE_KEY = "FILESYSTEM";
 	public static final String KERNEL_IMAGE_KEY = "KERNEL";
