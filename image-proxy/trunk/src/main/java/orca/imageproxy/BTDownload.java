@@ -53,11 +53,11 @@ public class BTDownload {
 	}
 
 	public String getErrorMsg() {
-		return this.errors;
+		return errors;
 	}
 
 	public void setErrorMsg(String errors) {
-		this.errors = errors;
+		errors = errors;
 	}
 
 	private BTDownload() throws Exception{
@@ -71,7 +71,7 @@ public class BTDownload {
 		sqliteDLDatabase=SqliteDLDatabase.getInstance();
 		downloadinglist = new LinkedList<Entry>();
 		existingdatasize = SETTINGSIZE;
-		this.errors = "";
+		errors = "";
 		Properties p = Globals.getInstance().getProperties();
 		if (p.containsKey(spacesizeProperty)) {
 			String spacesizeString=p.getProperty(spacesizeProperty);
@@ -194,7 +194,7 @@ public class BTDownload {
 			boolean[] isDownloading) throws Exception
 	{
 
-		int value = this.sqliteDLDatabase.checkDownloadList(fileSignature);
+		int value = sqliteDLDatabase.checkDownloadList(fileSignature);
 		if (value != 0)// downloading or downloaded
 		{
 			if (value == 1)// downloaded
@@ -256,12 +256,12 @@ public class BTDownload {
 				}
 				l.info(fileSignature + " image's size is "+newfilesize+"B");
 				
-				existingdatasize=this.sqliteDLDatabase.getExistingDataSize(existingdatasize);
+				existingdatasize=sqliteDLDatabase.getExistingDataSize(existingdatasize);
 				l.info("the existing data size in local space is "+ existingdatasize);
 				l.info("the total space available for downloading images is "+spacesize);
 				
 				while (existingdatasize + newfilesize > spacesize) {
-					Entry e = this.sqliteDLDatabase.getMostStaleEntry();
+					Entry e = sqliteDLDatabase.getMostStaleEntry();
 					if(e==null)
 						return -1;
 					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is going to be deleted");
@@ -277,12 +277,12 @@ public class BTDownload {
 							throw new IOException("Couldn't delete file " + e.getFilePath());
 						}
 					}
-					this.sqliteDLDatabase.deleteEntry(e.getHashcode());
+					sqliteDLDatabase.deleteEntry(e.getHashcode());
 					existingdatasize -= e.getFilesize();
 					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is deleted");
 				}
 				Entry entry = new Entry(fileSignature, newfilesize, 0, surl);
-				this.sqliteDLDatabase.insertEntry(entry);
+				sqliteDLDatabase.insertEntry(entry);
 			return 1;
 		}
 	}
@@ -314,11 +314,11 @@ public class BTDownload {
 			
 			if (type.equals(".torrent")) {
 				// download by bt protocol
-				String correctHash=this.btdownloadfromURL(surl, path, hash);
+				String correctHash=btdownloadfromURL(surl, path, hash);
 				return correctHash;
 			} else {
 				// download file directly
-				String correctHash=this.httpdownloadfromURL(url, path, hash);
+				String correctHash=httpdownloadfromURL(url, path, hash);
 				return correctHash;
 			}
 	}
@@ -356,21 +356,21 @@ public class BTDownload {
 		//the user-provided hash is incorrect, correct the hash in database and update its download status
 		{
 			l.warn("the provided hash "+hash+" is incorrect");
-			if(this.sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+			if(sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
 			{
-				this.sqliteDLDatabase.deleteEntry(hash);
+				sqliteDLDatabase.deleteEntry(hash);
 				boolean deleteresult=newfile.delete();
 				if(!deleteresult)
 					throw new IOException("fail on deleting the redundant file "+newfile.getPath());
 			}		
-			this.sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.HTTP);
+			sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.HTTP);
 			if(newfile.exists())
 				newfile.renameTo(new File(path + File.separator
 						+ correctHash));
 		}
 		else//the user-provided hash is correct, update download status
 		{
-			boolean flag = this.sqliteDLDatabase.updateDownloadStatus(e, Type.HTTP);
+			boolean flag = sqliteDLDatabase.updateDownloadStatus(e, Type.HTTP);
 			if(!flag)
 				throw new SQLException(
 					"The downloading image should have been logged");
@@ -389,7 +389,7 @@ public class BTDownload {
 		if (!entry.contains("#"))// the same file with different hash
 		{
 			hash = entry;
-			this.sqliteDLDatabase.deleteEntry(hash);
+			sqliteDLDatabase.deleteEntry(hash);
 			throw new RuntimeException("The image "+hash+" already exists with a different hash ");
 			
 		} else {
@@ -406,12 +406,12 @@ public class BTDownload {
 		if(!correctHash.equals(hash) )//the user-provided hash is incorrect, correct the hash in database and update its download status
 		{
 			l.warn("the provided hash "+hash+" is incorrect");
-			if(this.sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+			if(sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
 			{
-				this.sqliteDLDatabase.deleteEntry(hash);
+				sqliteDLDatabase.deleteEntry(hash);
 				deleteImageBT(hash, filepath);
 			}
-			this.sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.BT);
+			sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.BT);
 			File newfile=new File(BTDownload.DOWNLOADFOLDER+File.separator+hash);
 			if(newfile.exists())
 				newfile.renameTo(new File(BTDownload.DOWNLOADFOLDER + File.separator
@@ -419,7 +419,7 @@ public class BTDownload {
 		}
 		else//the user-provided hash is correct, update download status
 		{
-			boolean flag = this.sqliteDLDatabase.updateDownloadStatus(e, Type.BT);
+			boolean flag = sqliteDLDatabase.updateDownloadStatus(e, Type.BT);
 			if(!flag)
 				throw new SQLException(
 					"The downloading image should have been logged");
@@ -448,9 +448,9 @@ public class BTDownload {
 	{
 		String correctSign = null;
 		try{
-			int isDeleted = this.controller(BTDownload.SPACESIZE, signature, surl, isDownloading);
+			int isDeleted = controller(BTDownload.SPACESIZE, signature, surl, isDownloading);
 			if (isDeleted == 1) {
-				correctSign = this.downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, signature);
+				correctSign = downloadfromURL(surl, BTDownload.DOWNLOADFOLDER, signature);
 				l.info("Image " + signature + " finished downloading");
 			
 				// wake up the waiting threads for accomplishment of downloading
@@ -467,7 +467,7 @@ public class BTDownload {
 				correctSign=signature;
 			}
 		}catch(Exception e){
-			this.sqliteDLDatabase.deleteEntry(signature);
+			sqliteDLDatabase.deleteEntry(signature);
 			throw e;
 		}
 		return new Pair<String, String>(BTDownload.DOWNLOADFOLDER + File.separator + correctSign, correctSign);

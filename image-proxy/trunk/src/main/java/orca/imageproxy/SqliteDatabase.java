@@ -51,44 +51,55 @@ public class SqliteDatabase extends SqliteBase{
     
     public synchronized String checkImageSign(String guid, String type, boolean mark) throws SQLException{
     	String query = "SELECT * FROM IMAGE WHERE GUID = " + dbString(guid);
+
     	Connection connection = getConnection();
-    	try{
-    		Statement statement = connection.createStatement();
-        	ResultSet rs = statement.executeQuery(query);
-        	if(rs.next()){
-            	return rs.getString("IMAGE_ID");
-            }else{
-            	if(mark){
-            		query = "INSERT INTO IMAGE VALUES ( " + dbString(guid) + " , " + dbString(Globals.IMAGE_INPROGRESS) + " )";
-                	this.executeUpdate(query);
-            	}
-            	return null;
-            }
-    	}finally {
-    		returnConnection(connection);
-    	}
+	try {
+		Statement statement = connection.createStatement();
+		try {
+			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
+			ResultSet rs = statement.executeQuery(query);
+			try {
+				if(rs.next()) {
+					return rs.getString("IMAGE_ID");
+				} else {
+					if(mark) {
+						query = "INSERT INTO IMAGE VALUES ( " + dbString(guid) + " , " + dbString(Globals.IMAGE_INPROGRESS) + " )";
+						statement.executeUpdate(query);
+					}
+					return null;
+				}
+			}
+			finally { rs.close(); }
+		}
+		finally { statement.close(); }
+	}
+	finally { connection.close(); }
     }
     
     public synchronized int updateImageInfo(String guid, String imageId, String type) throws SQLException{
     	String query = "UPDATE IMAGE SET IMAGE_ID = " + dbString(imageId) + " WHERE GUID = " + dbString(guid);
-    	return this.executeUpdate(query);
+    	return executeUpdate(query);
     }
     
     public synchronized int removeImageInfo(String guid, String type) throws SQLException{
     	String query = "DELETE FROM IMAGE WHERE GUID = " + dbString(guid);
-    	return this.executeUpdate(query);
+    	return executeUpdate(query);
     }
     
     @Override
-    public void resetDB(Connection connection) throws SQLException, IOException{
-    	
-        	Statement statement = connection.createStatement();
-            statement.setQueryTimeout(30);  // set timeout to 30 sec.
-            
-            statement.executeUpdate("DROP TABLE IF EXISTS IMAGE");
-            statement.executeUpdate("CREATE TABLE IMAGE (GUID STRING, IMAGE_ID STRING)");
-            
-            createSuperblock();
-            
+    public void resetDB() throws SQLException, IOException{
+	Connection connection = getConnection();
+	try {
+		Statement statement = connection.createStatement();
+		try {
+			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
+			statement.executeUpdate("DROP TABLE IF EXISTS IMAGE");
+			statement.executeUpdate("CREATE TABLE IMAGE (GUID STRING, IMAGE_ID STRING)");
+
+			createSuperblock();
+		}
+		finally { statement.close(); }
+	}
+	finally { connection.close(); }
     }
 }
