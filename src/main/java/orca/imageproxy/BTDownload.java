@@ -193,12 +193,15 @@ public class BTDownload {
 	private synchronized int controller(long spacesize, String fileSignature, String surl,
 			boolean[] isDownloading) throws Exception
 	{
-
+		sqliteDLDatabase.lock();
 		int value = sqliteDLDatabase.checkDownloadList(fileSignature);
+
 		if (value != 0)// downloading or downloaded
 		{
-			if (value == 1)// downloaded
+			if (value == 1) {// downloaded
+				sqliteDLDatabase.unlock();
 				return 0;
+			}
 			else {
 				Entry downloadingentry=getEntryFromDLList(fileSignature);
 				if(downloadingentry==null)
@@ -206,6 +209,7 @@ public class BTDownload {
 				synchronized (downloadingentry) {
 					l.info(fileSignature + " is downloading");
 					isDownloading[0] = true;
+					sqliteDLDatabase.unlock();
 					downloadingentry.wait();
 				}
 				return controller(spacesize, fileSignature, surl, isDownloading);
@@ -231,6 +235,7 @@ public class BTDownload {
 						surl=result.substring(0, len_start);
 						newfilesize += length;
 					}catch(Exception exception){
+						sqliteDLDatabase.unlock();
 						throw exception;
 					}
 					
@@ -239,6 +244,7 @@ public class BTDownload {
 					try{
 						urlcon.connect();
 					}catch(Exception exception){
+						sqliteDLDatabase.unlock();
 						throw new Exception("Unable to connect to " + url);
 					}
 					
@@ -249,6 +255,7 @@ public class BTDownload {
 							throw new Exception("fail on parsing the length of the image file");
 						newfilesize += length;
 					}catch(Exception exception){
+						sqliteDLDatabase.unlock();
 						throw new Exception("Could not fetch file size for " + url);
 					}
 					
@@ -262,8 +269,10 @@ public class BTDownload {
 				
 				while (existingdatasize + newfilesize > spacesize) {
 					Entry e = sqliteDLDatabase.getMostStaleEntry();
-					if(e==null)
+					if(e==null) {
+						sqliteDLDatabase.unlock();
 						return -1;
+					}
 					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is going to be deleted");
 					if(e.getFilePath().endsWith(".torrent"))
 					{
@@ -283,6 +292,7 @@ public class BTDownload {
 				}
 				Entry entry = new Entry(fileSignature, newfilesize, 0, surl);
 				sqliteDLDatabase.insertEntry(entry);
+				sqliteDLDatabase.unlock();
 			return 1;
 		}
 	}
