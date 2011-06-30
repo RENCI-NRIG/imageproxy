@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class SqliteDLDatabase extends SqliteBase{
 
@@ -16,6 +17,7 @@ public class SqliteDLDatabase extends SqliteBase{
 	public final static String moststaleview="MOSTSTALEVIEW";
 	
 	private static SqliteDLDatabase dldatabase;
+	private static ReentrantLock lock = new ReentrantLock();
 	
 	protected SqliteDLDatabase() throws Exception {
 		super();
@@ -50,6 +52,14 @@ public class SqliteDLDatabase extends SqliteBase{
         		"Hence, removing this file will make the container discard and reset its state.");
         os.close();
         logger.debug("Download superblock created successfully");
+    }
+
+    public void lock() {
+	lock.lock();
+    }
+
+    public void unlock() {
+	lock.unlock();
     }
     
     public synchronized boolean clearDownloadingImages() throws Exception{
