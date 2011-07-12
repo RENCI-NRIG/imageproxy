@@ -15,9 +15,10 @@ public class SqliteDLDatabase extends SqliteBase{
 	public final static String imagestable="FILE";
 	
 	public final static String moststaleview="MOSTSTALEVIEW";
+
+	private static final ReentrantLock lock = new ReentrantLock();
 	
 	private static SqliteDLDatabase dldatabase;
-	private static ReentrantLock lock = new ReentrantLock();
 	
 	protected SqliteDLDatabase() throws Exception {
 		super();
@@ -156,20 +157,9 @@ public class SqliteDLDatabase extends SqliteBase{
 						int status=rs.getShort("STATUS");
 
 						if(guid.equals(hashcode)){
-							if(status==0)//downloading
-							{
-								flag=-1;
-								updateRefNum((short)0, guid, statement);
-								continue;
-							}
-							else if(status==1)//downloaded
-							{
-								flag=1;
-								updateRefNum((short)0, guid, statement);
-								continue;
-							}
+							if(status==0) flag = -1; //downloading
+							else if(status==1) flag = 1; //downloaded
 						}
-						updateRefNum((short)newRef, guid, statement);
 					}
 				}
 				finally { rs.close(); }
@@ -262,6 +252,7 @@ public class SqliteDLDatabase extends SqliteBase{
 
 		Connection connection = getConnection();
 		try {
+			connection.setAutoCommit(false);
 			Statement statement=connection.createStatement();
 			try {
 				statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
@@ -288,7 +279,11 @@ public class SqliteDLDatabase extends SqliteBase{
 			}
 			finally { statement.close(); }
 		}
-		finally { connection.close(); }
+		finally {
+			connection.commit();
+			connection.setAutoCommit(true);
+			connection.close();
+		}
 	}
 	
 	public synchronized void updateRegistrationStatus(String guid) throws SQLException
@@ -306,6 +301,7 @@ public class SqliteDLDatabase extends SqliteBase{
     public void resetDB() throws SQLException, IOException{
 	Connection connection = getConnection();
 	try {
+		connection.setAutoCommit(false);
 		Statement statement = connection.createStatement();
 		try {
 			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
@@ -320,6 +316,10 @@ public class SqliteDLDatabase extends SqliteBase{
 		}
 		finally { statement.close(); }
 	}
-	finally { connection.close(); }
+	finally {
+		connection.commit();
+		connection.setAutoCommit(true);
+		connection.close();
+	}
     }
 }

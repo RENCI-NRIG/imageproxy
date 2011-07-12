@@ -193,8 +193,16 @@ public class BTDownload {
 	private synchronized int controller(long spacesize, String fileSignature, String surl,
 			boolean[] isDownloading) throws Exception
 	{
+		int value;
 		sqliteDLDatabase.lock();
-		int value = sqliteDLDatabase.checkDownloadList(fileSignature);
+
+		try {
+			value = sqliteDLDatabase.checkDownloadList(fileSignature);
+		}
+		catch (Exception ex) {
+			sqliteDLDatabase.unlock();
+			throw ex;
+		}
 
 		if (value != 0)// downloading or downloaded
 		{
@@ -263,12 +271,27 @@ public class BTDownload {
 				}
 				l.info(fileSignature + " image's size is "+newfilesize+"B");
 				
-				existingdatasize=sqliteDLDatabase.getExistingDataSize(existingdatasize);
+				try {
+					existingdatasize = 
+						sqliteDLDatabase.getExistingDataSize(existingdatasize);
+				}
+				catch (Exception ex) {
+					sqliteDLDatabase.unlock();
+					throw ex;
+				}
 				l.info("the existing data size in local space is "+ existingdatasize);
 				l.info("the total space available for downloading images is "+spacesize);
 				
 				while (existingdatasize + newfilesize > spacesize) {
-					Entry e = sqliteDLDatabase.getMostStaleEntry();
+					Entry e; 
+
+					try {
+						e = sqliteDLDatabase.getMostStaleEntry();
+					}
+					catch (Exception ex) {
+						sqliteDLDatabase.unlock();
+						throw ex;
+					}
 					if(e==null) {
 						sqliteDLDatabase.unlock();
 						return -1;
@@ -283,15 +306,28 @@ public class BTDownload {
 						File file = new File(BTDownload.DOWNLOADFOLDER + File.separator + e.getHashcode());
 						boolean result = file.delete();
 						if (!result){
+							sqliteDLDatabase.unlock();
 							throw new IOException("Couldn't delete file " + e.getFilePath());
 						}
 					}
-					sqliteDLDatabase.deleteEntry(e.getHashcode());
+					try {
+						sqliteDLDatabase.deleteEntry(e.getHashcode());
+					}
+					catch (Exception ex) {
+						sqliteDLDatabase.unlock();
+						throw ex;
+					}
 					existingdatasize -= e.getFilesize();
 					l.info("image "+e.getHashcode()+"("+e.getFilesize()+ "B) is deleted");
 				}
 				Entry entry = new Entry(fileSignature, newfilesize, 0, surl);
-				sqliteDLDatabase.insertEntry(entry);
+				try {
+					sqliteDLDatabase.insertEntry(entry);
+				}
+				catch (Exception ex) {
+					sqliteDLDatabase.unlock();
+					throw ex;
+				}
 				sqliteDLDatabase.unlock();
 			return 1;
 		}
@@ -362,28 +398,35 @@ public class BTDownload {
 		String correctHash=Util.getFileHash(newfile.getPath());
 		Entry e = new Entry(hash, newfile.length(), -1, newfile.getPath());
 		
-		if(!correctHash.equals(hash))
-		//the user-provided hash is incorrect, correct the hash in database and update its download status
-		{
-			l.warn("the provided hash "+hash+" is incorrect");
-			if(sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+		try {
+			sqliteDLDatabase.lock();
+			if(!correctHash.equals(hash))
+			// the user-provided hash is incorrect;
+                        // correct the hash in database and update its download status
 			{
-				sqliteDLDatabase.deleteEntry(hash);
-				boolean deleteresult=newfile.delete();
-				if(!deleteresult)
-					throw new IOException("fail on deleting the redundant file "+newfile.getPath());
-			}		
-			sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.HTTP);
-			if(newfile.exists())
-				newfile.renameTo(new File(path + File.separator
-						+ correctHash));
+				l.warn("the provided hash "+hash+" is incorrect");
+				if(sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+				{
+					sqliteDLDatabase.deleteEntry(hash);
+					boolean deleteresult=newfile.delete();
+					if(!deleteresult)
+						throw new IOException("fail on deleting the redundant file "+newfile.getPath());
+				}		
+				sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.HTTP);
+				if(newfile.exists())
+					newfile.renameTo(new File(path + File.separator
+							+ correctHash));
+			}
+			else//the user-provided hash is correct, update download status
+			{
+				boolean flag = sqliteDLDatabase.updateDownloadStatus(e, Type.HTTP);
+				if(!flag)
+					throw new SQLException(
+						"The downloading image should have been logged");
+			}
 		}
-		else//the user-provided hash is correct, update download status
-		{
-			boolean flag = sqliteDLDatabase.updateDownloadStatus(e, Type.HTTP);
-			if(!flag)
-				throw new SQLException(
-					"The downloading image should have been logged");
+		finally {
+			sqliteDLDatabase.unlock();
 		}
 		return correctHash;
 	}
@@ -412,27 +455,32 @@ public class BTDownload {
 		
 		String correctHash=Util.getFileHash(BTDownload.DOWNLOADFOLDER+File.separator+hash);
 		Entry e=new Entry(hash, Long.parseLong(filesize), Integer.parseInt(reference), filepath);
-		
-		if(!correctHash.equals(hash) )//the user-provided hash is incorrect, correct the hash in database and update its download status
-		{
-			l.warn("the provided hash "+hash+" is incorrect");
-			if(sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+		try {
+			sqliteDLDatabase.lock();
+			if(!correctHash.equals(hash) )//the user-provided hash is incorrect, correct the hash in database and update its download status
 			{
-				sqliteDLDatabase.deleteEntry(hash);
-				deleteImageBT(hash, filepath);
+				l.warn("the provided hash "+hash+" is incorrect");
+				if(sqliteDLDatabase.isExisted(correctHash))//need to delete the downloaded image
+				{
+					sqliteDLDatabase.deleteEntry(hash);
+					deleteImageBT(hash, filepath);
+				}
+				sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.BT);
+				File newfile=new File(BTDownload.DOWNLOADFOLDER+File.separator+hash);
+				if(newfile.exists())
+					newfile.renameTo(new File(BTDownload.DOWNLOADFOLDER + File.separator
+							+ correctHash));
 			}
-			sqliteDLDatabase.updateDownloadStatus(e, correctHash, Type.BT);
-			File newfile=new File(BTDownload.DOWNLOADFOLDER+File.separator+hash);
-			if(newfile.exists())
-				newfile.renameTo(new File(BTDownload.DOWNLOADFOLDER + File.separator
-						+ correctHash));
+			else//the user-provided hash is correct, update download status
+			{
+				boolean flag = sqliteDLDatabase.updateDownloadStatus(e, Type.BT);
+				if(!flag)
+					throw new SQLException(
+						"The downloading image should have been logged");
+			}
 		}
-		else//the user-provided hash is correct, update download status
-		{
-			boolean flag = sqliteDLDatabase.updateDownloadStatus(e, Type.BT);
-			if(!flag)
-				throw new SQLException(
-					"The downloading image should have been logged");
+		finally {
+			sqliteDLDatabase.unlock();
 		}
 		return correctHash;
 	}
