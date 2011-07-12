@@ -127,6 +127,7 @@ public class SqliteBase {
     	Connection connection = getConnection();
 
 	try {
+		connection.setAutoCommit(false);
     		Statement statement = connection.createStatement();
 		try {
 			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
@@ -135,7 +136,11 @@ public class SqliteBase {
 		}
 		finally { statement.close(); }
 	}
-	finally { connection.close(); }
+	finally {
+		connection.commit();
+		connection.setAutoCommit(true);
+		connection.close();
+	}
     }
     
     /**
