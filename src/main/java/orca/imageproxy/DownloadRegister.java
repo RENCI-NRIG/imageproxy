@@ -39,9 +39,9 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 		try{
 			
 			// see if this file with given signature is present in registry
-			String imageId = db.checkImageSign(signature, type, true);
+			String imageId = db.checkImageSignature(signature, type, true);
 
-			// null means we get to load it, otherwise wait and return eki
+			// null means we get to load it, otherwise wait and return image id
 			if (imageId != null) {
 				// wait for other threads to load the image
 				synchronized(db) {
@@ -53,7 +53,7 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 							;
 						}
 						l.info("Received signal that image download is complete.");
-						imageId = db.checkImageSign(signature, type, false);
+						imageId = db.checkImageSignature(signature, type, false);
 						if(imageId == null){
 							//throw new Exception("Exception while downloading/registering image");
 							return downloadAndRegister(imageInfo, type);
@@ -61,11 +61,9 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 					}
 				}
 			}else{
-				boolean[] downloadingflag = new boolean[1];
 				String imagePath, hash;
-				
 				try{
-					Pair<String, String> downloadInfo = download(signature, url, downloadingflag);
+					Pair<String, String> downloadInfo = download(signature, url);
 					imagePath = downloadInfo.getFirst();
 					hash = downloadInfo.getSecond();
 					
@@ -78,17 +76,16 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 					throw exception;
 				}
 								
-				if (!downloadingflag[0]){// if this is not a concurrent duplicate request
-					try{
-						imageId = register(imagePath, type);
-					}catch(Exception exception){
-						l.error("Exception while registering image.");
-						throw exception;
-					}finally{
-						// change the registration status to finished so the image can be replaced by an incoming one
-						SqliteDLDatabase.getInstance().updateRegistrationStatus(signature);
-					}
+				try{
+					imageId = register(imagePath, type);
+				}catch(Exception exception){
+					l.error("Exception while registering image.");
+					throw exception;
+				}finally{
+					// change the registration status to finished so the image, if required, can be replaced by an incoming one
+					btDownload.removeReference(signature);
 				}
+				
 				db.updateImageInfo(signature, imageId, type);
 				synchronized (db) {
 					db.notifyAll();
@@ -101,6 +98,9 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 			
 		}catch(Exception exception){
 			db.removeImageInfo(signature, type);
+			synchronized (db) {
+				db.notifyAll();
+			}
 			throw exception;
 		}
 	}
@@ -109,17 +109,16 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 	 * Calls the functions to download the required file
 	 * @param signature
 	 * @param url
-	 * @param downloadingflag
 	 * @return path and hash of the downloaded file
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	private Pair<String, String> download(String signature, String url, boolean[] downloadingflag) throws Exception {
+	private Pair<String, String> download(String signature, String url) throws Exception {
 		
 		l.info("Downloading file with Signature: " + signature + " from url: " + url);
 		
 		// calling function to download file
-		Pair<String, String> downloadInfo = btDownload.Download(url, signature, downloadingflag);
+		Pair<String, String> downloadInfo = btDownload.downloadFile(url, signature);
 		
 		l.info("File downloaded. Path: " + downloadInfo.getFirst() + " , Hash: " + downloadInfo.getSecond());
 

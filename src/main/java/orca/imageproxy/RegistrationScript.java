@@ -95,8 +95,7 @@ public class RegistrationScript {
 				
 			} else {
 				
-				boolean[] downloadingflag = new boolean[1];
-				Pair<String, String> downloadInfo = download(signature, url, downloadingflag);
+				Pair<String, String> downloadInfo = download(signature, url);
 				String imagePath = downloadInfo.getFirst();
 				String hash = downloadInfo.getSecond();
 				
@@ -111,7 +110,7 @@ public class RegistrationScript {
 					
 					Map<String, Pair<String, String>> imageInfo = parseMetadata(imagePath);
 					
-					SqliteDLDatabase.getInstance().updateRegistrationStatus(signature);
+					SqliteDLDatabase.getInstance().removeReference(signature);
 					
 					if(!imageInfo.containsKey(Globals.FILE_SYSTEM_IMAGE_KEY)){
 						l.error("Valid filesystem image information could not be found in the metadata.");
@@ -274,17 +273,16 @@ public class RegistrationScript {
 	 * Calls the functions to download the required file
 	 * @param signature
 	 * @param url
-	 * @param downloadingflag
 	 * @return signature and url of the file to be downloaded
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	private Pair<String, String> download(String signature, String url, boolean[] downloadingflag) throws Exception {
+	private Pair<String, String> download(String signature, String url) throws Exception {
 		
 		l.info("Downloading file with signature: " + signature + " from url: " + url);
 		
 		// calling function to download file
-		Pair<String, String> downloadInfo = btDownload.Download(url, signature, downloadingflag);
+		Pair<String, String> downloadInfo = btDownload.downloadFile(url, signature);
 		
 		l.info("File downloaded. Path: " + downloadInfo.getFirst() + " , Signature: " + downloadInfo.getSecond());
 

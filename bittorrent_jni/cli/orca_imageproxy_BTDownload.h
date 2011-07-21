@@ -18,10 +18,10 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
 /*
  * Class:     orca_imageproxy_BTDownload
  * Method:    getFileLength
- * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+ * Signature: (Ljava/lang/String;)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_getFileLength
-  (JNIEnv *, jobject, jstring, jstring);
+  (JNIEnv *, jobject, jstring);
 
 /*
  * Class:     orca_imageproxy_BTDownload
@@ -34,10 +34,10 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_initSession
 /*
  * Class:     orca_imageproxy_BTDownload
  * Method:    btdownloadfromURL
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V
  */
 JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
-  (JNIEnv *, jobject, jstring, jstring, jstring);
+  (JNIEnv *, jobject, jstring, jstring);
 
 #ifdef __cplusplus
 }
