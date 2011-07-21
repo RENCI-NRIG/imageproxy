@@ -1,59 +1,52 @@
 package orca.imageproxy;
 
-public class Entry implements Comparable<Entry>{
-	public String getHashcode() {
-		return hashcode;
+public class Entry{
+	
+	private String signature;
+	private long filesize;//if the reference is same, the smaller the filesize is, the more prior it should be replaced(closer to the bottom)
+	private String filePath;
+	private String downloadType;
+	private String torrentFilePath;
+	
+	public Entry(String hashcode, long filesize, int reference, String filepath, String downloadType, String torrentFilePath)
+	{
+		this.signature = hashcode;
+		this.filesize = filesize;
+		this.filePath = filepath;
+		this.downloadType = downloadType;
+		this.torrentFilePath = torrentFilePath;
 	}
-	public void setHashcode(String hashcode) {
-		this.hashcode=hashcode;
+	
+	public Entry(){;}
+
+	public String getSignature() {
+		return signature;
+	}
+	public void setSignature(String signature) {
+		this.signature = signature;
 	}
 	public long getFilesize() {
 		return filesize;
 	}
 	public void setFilesize(long filesize) {
-		this.filesize=filesize;
-	}
-	public int getReference() {
-		return reference;
+		this.filesize = filesize;
 	}
 	public String getFilePath(){
-		return this.filepath;
+		return this.filePath;
 	}
 	public void setFilePath(String filepath){
-		this.filepath=filepath;
+		this.filePath = filepath;
 	}
-	private String hashcode;
-	private long filesize;//if the reference is same, the smaller the filesize is, the more prior it should be replaced(closer to the bottom)
-	private int reference;
-	private String filepath;
-	public Entry(String hashcode, long filesize, int reference, String filepath)
-	{
-		this.hashcode=hashcode;
-		this.filesize=filesize;
-		this.reference=reference;
-		this.filepath=filepath;
+	public String getDownloadType() {
+		return downloadType;
 	}
-	public Entry(){;}
-
-	public int compareTo(Entry entry) {
-		if(this.hashcode.startsWith("downloading")&&entry.hashcode.startsWith("downloading"))
-			return 0;
-		else if(this.hashcode.startsWith("downloading")&&!entry.hashcode.startsWith("downloading"))
-			return -1;
-		if(this.reference>entry.getReference())
-			return 1;
-		else if(this.reference<entry.getReference())
-			return -1;
-		else
-		{
-			if(this.filesize<entry.getFilesize())
-				return 1;
-			else if(this.filesize>entry.getFilesize())
-				return -1;
-			return 0;
-		}
+	public void setDownloadType(String downloadType) {
+		this.downloadType = downloadType;
 	}
-	public void setReference(int i) {
-		this.reference=i;
+	public String getTorrentFilePath(){
+		return this.torrentFilePath;
+	}
+	public void setTorrentFilePath(String torrentFilePath){
+		this.torrentFilePath = torrentFilePath;
 	}
 }

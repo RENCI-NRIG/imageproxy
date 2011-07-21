@@ -90,7 +90,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_initSession
 }
 
 JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_getFileLength
-  (JNIEnv * env, jobject obj, jstring url, jstring path)
+  (JNIEnv * env, jobject obj, jstring url)
 {
 	int           parse_result;
 	tr_ctor     * ctor;
@@ -210,7 +210,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
 }
 
 JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
-  (JNIEnv * env, jobject obj, jstring url, jstring path, jstring hash)
+  (JNIEnv * env, jobject obj, jstring url, jstring hash)
 {
 	int           error;
 	tr_ctor     * ctor;

@@ -49,40 +49,40 @@ public class SqliteDatabase extends SqliteBase{
         logger.debug("Superblock created successfully");
     }
     
-    public synchronized String checkImageSign(String guid, String type, boolean mark) throws SQLException{
-    	String query = "SELECT * FROM IMAGE WHERE GUID = " + dbString(guid);
+    public synchronized String checkImageSignature(String signature, String type, boolean mark) throws SQLException{
+    	String query = "SELECT * FROM IMAGE WHERE SIGNATURE = " + dbString(signature);
 
     	Connection connection = getConnection();
-	try {
-		Statement statement = connection.createStatement();
 		try {
-			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
-			ResultSet rs = statement.executeQuery(query);
+			Statement statement = connection.createStatement();
 			try {
-				if(rs.next()) {
-					return rs.getString("IMAGE_ID");
-				} else {
-					if(mark) {
-						query = "INSERT INTO IMAGE VALUES ( " + dbString(guid) + " , " + dbString(Globals.IMAGE_INPROGRESS) + " )";
-						statement.executeUpdate(query);
+				statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
+				ResultSet rs = statement.executeQuery(query);
+				try {
+					if(rs.next()) {
+						return rs.getString("IMAGE_ID");
+					} else {
+						if(mark) {
+							query = "INSERT INTO IMAGE VALUES ( " + dbString(signature) + " , " + dbString(Globals.IMAGE_INPROGRESS) + " )";
+							statement.executeUpdate(query);
+						}
+						return null;
 					}
-					return null;
 				}
+				finally { rs.close(); }
 			}
-			finally { rs.close(); }
+			finally { statement.close(); }
 		}
-		finally { statement.close(); }
-	}
-	finally { connection.close(); }
+		finally { connection.close(); }
     }
     
-    public synchronized int updateImageInfo(String guid, String imageId, String type) throws SQLException{
-    	String query = "UPDATE IMAGE SET IMAGE_ID = " + dbString(imageId) + " WHERE GUID = " + dbString(guid);
+    public synchronized int updateImageInfo(String signature, String imageId, String type) throws SQLException{
+    	String query = "UPDATE IMAGE SET IMAGE_ID = " + dbString(imageId) + " WHERE SIGNATURE = " + dbString(signature);
     	return executeUpdate(query);
     }
     
-    public synchronized int removeImageInfo(String guid, String type) throws SQLException{
-    	String query = "DELETE FROM IMAGE WHERE GUID = " + dbString(guid);
+    public synchronized int removeImageInfo(String signature, String type) throws SQLException{
+    	String query = "DELETE FROM IMAGE WHERE SIGNATURE = " + dbString(signature);
     	return executeUpdate(query);
     }
     
@@ -94,7 +94,7 @@ public class SqliteDatabase extends SqliteBase{
 		try {
 			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
 			statement.executeUpdate("DROP TABLE IF EXISTS IMAGE");
-			statement.executeUpdate("CREATE TABLE IMAGE (GUID STRING, IMAGE_ID STRING)");
+			statement.executeUpdate("CREATE TABLE IMAGE (SIGNATURE STRING, IMAGE_ID STRING)");
 
 			createSuperblock();
 		}
