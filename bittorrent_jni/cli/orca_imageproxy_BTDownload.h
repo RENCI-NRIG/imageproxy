@@ -18,9 +18,9 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
 /*
  * Class:     orca_imageproxy_BTDownload
  * Method:    getFileLength
- * Signature: (Ljava/lang/String;)Ljava/lang/String;
+ * Signature: (Ljava/lang/String;)Ljava/lang/Long;
  */
-JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_getFileLength
+JNIEXPORT jlong JNICALL Java_orca_imageproxy_BTDownload_getFileLength
   (JNIEnv *, jobject, jstring);
 
 /*
