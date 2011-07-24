@@ -89,7 +89,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_initSession
 	}
 }
 
-JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_getFileLength
+JNIEXPORT jlong JNICALL Java_orca_imageproxy_BTDownload_getFileLength
   (JNIEnv * env, jobject obj, jstring url)
 {
 	int           parse_result;
@@ -99,11 +99,10 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_getFileLength
 	if(h==NULL)
 	{
 		char *errbuffer="the session is not initialized";
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/lang/NullPointerException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
-
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
-		return NULL;
+		return 0;
 	}
 	ctor = tr_ctorNew( h );
     	tr_ctorSetPaused( ctor, TR_FORCE, FALSE );
@@ -112,40 +111,38 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_getFileLength
 		waitingOnWeb = TRUE;
 		while( waitingOnWeb ) tr_wait_msec( 1000 );
 	    } else {
-		char errbuffer[strlen(torrentPath)+50];
+		char errbuffer[strlen(torrentPath)+50];//50 for error messages
 		sprintf( errbuffer, "ERROR: Unrecognized torrent \"%s\".\n", torrentPath );
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
 
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
-		return NULL;
+		return 0;
 	    }
     	
 	parse_result = tr_torrentParse( ctor, &setme_info );
     	tr_ctorFree( ctor );
 	if( parse_result==TR_PARSE_ERR)
     	{
-		char errbuffer[strlen(torrentPath)+100];
-		sprintf( errbuffer, "Failed opening torrent file '%s' maybe because of failing on connecting to server\n", torrentPath );
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		char errbuffer[strlen(torrentPath)+100];//100 for error messages
+		sprintf( errbuffer, "Failed opening torrent file '%s'\n", torrentPath );
+		jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
 
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
-		return NULL;
+		return 0;
     	}
 	if(setme_info.fileCount!=1)
 	{
 		char *errbuffer="one torrent should only contain one image file!";
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
-		return NULL;
+		return 0;
 	}
 	int64_t length = setme_info.files[0].length;
-	char result[strlen(setme_info.torrent)+50];
-	sprintf(result, "%s%"PRIu64, setme_info.torrent, length);
 	(*env)->ReleaseStringUTFChars(env, url, torrentPath);
-	return (*env)->NewStringUTF(env, result);
+	return length;
 }
 
 JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
@@ -163,7 +160,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
 	if(h==NULL)
 	{
 		char *errbuffer="the session is not initialized";
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/lang/NullPointerException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
 
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
@@ -186,9 +183,9 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
 	tr_ctorFree( ctor );
     	if( parse_result==TR_PARSE_ERR)
     	{
-		char errbuffer[strlen(torrentPath)+50];
+		char errbuffer[strlen(torrentPath)+50];//50 for error messages
 		sprintf( errbuffer, "Failed opening torrent file `%s'\n", torrentPath );
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 		(*env)->ReleaseStringUTFChars(env, hash, filename);
@@ -197,6 +194,7 @@ JNIEXPORT void JNICALL Java_orca_imageproxy_BTDownload_deleteImageBT
 	else
 	{
 		char downloadedImage[strlen(rootfolder)+strlen(downloadDir)+1+strlen(filename)];
+		//downloaded image path includes rootfolder+downloadfolder+seperator+filename
 		sprintf(downloadedImage, "%s%s/%s", rootfolder, downloadDir, filename);
 		//delete the image, torrent and resume
 		unlink(downloadedImage);
@@ -219,7 +217,7 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 
 	const char *torrentPath=(*env)->GetStringUTFChars(env, url, 0);
 	char *filename=(char *)(*env)->GetStringUTFChars(env, hash, 0);
-	char *originalName=NULL;
+	char *originalName=NULL;//store the image file's original name contained in the torrent file
 	const tr_stat * st;
 	const char * messageName[] = { NULL, "Tracker gave a warning:",
                                              "Tracker gave an error:",
@@ -227,12 +225,9 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 	if(h==NULL)
 	{
 		char *errbuffer="the session is not initialized";
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/lang/NullPointerException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
 
-		if(originalName!=NULL)
-			tor->info.files[0].name=originalName;
-		tr_torrentFree(tor);
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 		(*env)->ReleaseStringUTFChars(env, hash, filename);
 		return NULL;
@@ -245,13 +240,11 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 		waitingOnWeb = TRUE;
 		while( waitingOnWeb ) tr_wait_msec( 1000 );
 	    } else {
-		char errbuffer[strlen(torrentPath)+50];
+		char errbuffer[strlen(torrentPath)+50];//50 for error messages
 		sprintf( errbuffer, "ERROR: Unrecognized torrent \"%s\".\n", torrentPath );
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
-		if(originalName!=NULL)
-			tor->info.files[0].name=originalName;
-		tr_torrentFree(tor);
+
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 		(*env)->ReleaseStringUTFChars(env, hash, filename);
 		return NULL;
@@ -261,32 +254,29 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 
     	if( !tor )
     	{
-		char errbuffer[strlen(torrentPath)+50];
+		char errbuffer[strlen(torrentPath)+50];//50 for error messages
                 if(error==TR_PARSE_ERR)
-                        sprintf( errbuffer, "Failed opening torrent file '%s' maybe because of failing on connecting to server\n", torrentPath );
+                        sprintf( errbuffer, "Failed opening torrent file '%s'\n", torrentPath );
                 else if(error==TR_PARSE_DUPLICATE)
                         sprintf( errbuffer, "Failed opening torrent file '%s', because it may have been downloading already\n", torrentPath );
-		jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+		jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 		(*env)->ThrowNew(env, newExcCls, errbuffer);
-		if(originalName!=NULL)
-			tor->info.files[0].name=originalName;
-		tr_torrentFree(tor);
+
 		(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 		(*env)->ReleaseStringUTFChars(env, hash, filename);
 		return NULL;
     	}
-	else//change the name of download file
+	else
 	{
 		tr_torrentSetDirty(tor);
 		st = tr_torrentStat( tor );
         	if( messageName[st->error] )
 		{
-			char errbuffer[strlen(st->errorString)+strlen(messageName[st->error])+10];
+			char errbuffer[strlen(st->errorString)+strlen(messageName[st->error])+10];//10 for additional characters besides error messages
             		sprintf( errbuffer, "\n%s: %s\n", messageName[st->error], st->errorString );
-			jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+			jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 			(*env)->ThrowNew(env, newExcCls, errbuffer);
-			if(originalName!=NULL)
-				tor->info.files[0].name=originalName;
+
 			tr_torrentFree(tor);
 			(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 			(*env)->ReleaseStringUTFChars(env, hash, filename);
@@ -295,16 +285,17 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 		if(tor->info.fileCount!=1)
 		{
 			char *errbuffer="one torrent should only contain one image file!";
-			jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+			jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 			(*env)->ThrowNew(env, newExcCls, errbuffer);
-			if(originalName!=NULL)
-				tor->info.files[0].name=originalName;
+
 			tr_torrentFree(tor);
 			(*env)->ReleaseStringUTFChars(env, url, torrentPath);
 			(*env)->ReleaseStringUTFChars(env, hash, filename);
 			return NULL;
 		}
+		//store the original name
 		originalName=tor->info.files[0].name;
+		//change the name of download file
 		tor->info.files[0].name=filename;
 	}
     	tr_torrentStart( tor );
@@ -315,31 +306,26 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
     	}
 	st = tr_torrentStat( tor );
 	jstring correctHash=NULL;
-	if(st->activity & TR_STATUS_SEED)
-	{
-		completeFlag=1;
-		char entry[strlen(filename)];
-		sprintf(entry, "%s", filename);
-		jmethodID mid=(*env)->GetMethodID(env, (*env)->GetObjectClass(env,obj), "callbackComplete", "(Ljava/lang/String;)Ljava/lang/String;");
-		correctHash=(jstring)(*env)->CallObjectMethod(env, obj, mid, (*env)->NewStringUTF(env, entry));
-	}
 
-	while(!completeFlag)
+	do
 	{
-        	tr_wait_msec( 200 );
-
-		st = tr_torrentStat( tor );
+        	st = tr_torrentStat( tor );
         	if( st->activity & TR_STATUS_STOPPED )
-            	    	break;
+            	{
+			char errbuffer[strlen(torrentPath)+50];//50 for error messages
+			sprintf( errbuffer, "the status of torrent file '%s' is stopped\n", torrentPath );
+			jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
+			(*env)->ThrowNew(env, newExcCls, errbuffer);
+			break;			
+		}
 		else if( st->activity & TR_STATUS_SEED )
 		{
 			completeFlag=1;
 
-			char filesize[20];
-			sprintf(filesize, "%"PRIu64, tor->info.files[0].length);
-			int entry_len=strlen(filename)+1+strlen(filesize)+1+1+1+strlen(tor->info.torrent);
+			int entry_len=strlen(filename)+strlen(torrentPath)+strlen(tor->info.torrent)+2;
+			//entry_len=length of(hash + '#' + url + '#' + torrentFilePath)
 			char entry[entry_len];
-			sprintf(entry, "%s#%s#%d#%s", filename, filesize, 0, tor->info.torrent);
+			sprintf(entry, "%s#%s#%s", filename, torrentPath, tor->info.torrent);
 			if(originalName!=NULL)
 				tor->info.files[0].name=originalName;
 			tr_torrentFree(tor);
@@ -351,13 +337,14 @@ JNIEXPORT jstring JNICALL Java_orca_imageproxy_BTDownload_btdownloadfromURL
 		}
         	if( messageName[st->error] )
 		{
-			char errbuffer[strlen(st->errorString)+strlen(messageName[st->error])+10];
+			char errbuffer[strlen(st->errorString)+strlen(messageName[st->error])+10];//10 for additional characters besides error messages
             		sprintf( errbuffer, "\n%s: %s\n", messageName[st->error], st->errorString );
-			jclass newExcCls=(*env)->FindClass(env,"java/lang/Exception");
+			jclass newExcCls=(*env)->FindClass(env,"java/io/IOException");
 			(*env)->ThrowNew(env, newExcCls, errbuffer);
 			break;
 		}
-	}
+		tr_wait_msec( 200 );
+	}while(!completeFlag);
 
 	if(originalName!=NULL)
 		tor->info.files[0].name=originalName;

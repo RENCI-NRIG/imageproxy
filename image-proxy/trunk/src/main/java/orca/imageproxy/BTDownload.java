@@ -242,9 +242,7 @@ public class BTDownload {
 		URL url = new URL(surl);
 		
 		if (downloadType.equals(DOWNLOADTYPE_BT)) {
-			String result = getFileLength(surl);
-			long length = Long.parseLong(result);
-			fileSize = length;
+			fileSize = getFileLength(surl);
 		}else {
 			HttpURLConnection urlcon = (HttpURLConnection)url.openConnection();
 			try{
@@ -359,7 +357,7 @@ public class BTDownload {
 	 * @return file length
 	 * @throws Exception
 	 */
-	public native String getFileLength(String btUrl)
+	public native long getFileLength(String btUrl)
 			throws Exception;
 
 	private static native void deleteImageBT(String signature, String torrentFilePath) throws Exception;
