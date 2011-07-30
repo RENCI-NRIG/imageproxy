@@ -29,102 +29,106 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 	 * @return
 	 * @throws Exception
 	 */
-	private String downloadAndRegister(Map<String, Pair<String, String>> imageInfo, String type) throws Exception{
+	private String downloadAndRegister(Map<String, Pair<String, String>> imageInfo, String type) throws Exception {
 		
+		ActiveDownloadMap dlMap = ActiveDownloadMap.getInstance();
+		String wakeObject;
 		String signature = imageInfo.get(type).getFirst();
 		String url = imageInfo.get(type).getSecond();
 		
-		l.info("Download and register, Signature: " + signature + ", Url: " + url + ", Type: " + type);
+		l.info("Download and register, Signature: " + signature + 
+			", Url: " + url + ", Type: " + type);
 		
-		try{
-			
+		try {
 			// see if this file with given signature is present in registry
 			String imageId = db.checkImageSignature(signature, type, true);
+			wakeObject = (String) dlMap.get(signature+"DAR");
+			if (wakeObject == null) {
+				String newWakeObject;
+				if (imageId == null)
+					newWakeObject = new String(Globals.IMAGE_INPROGRESS);
+				else
+					newWakeObject = new String(imageId);
+				wakeObject = (String) dlMap.putIfAbsent(signature+"DAR", newWakeObject);
+				if (wakeObject == null) wakeObject = newWakeObject;
+			}
 
 			// null means we get to load it, otherwise wait and return image id
 			if (imageId != null) {
 				// wait for other threads to load the image
-				synchronized(db) {
+				synchronized(wakeObject) {
 					while (Globals.IMAGE_INPROGRESS.equals(imageId)) {
-						l.info("Image download in progress; awaiting completion.");
+						l.info("Image download from URL: " + url +
+							" in progress; awaiting completion.");
 						try {
-							db.wait();
+							wakeObject.wait();
 						} catch (InterruptedException e) {
 							;
 						}
-						l.info("Received signal that image download is complete.");
+						l.info("Awakened while waiting" +
+							" for image to download; " +
+							"checking to see if complete...");
 						imageId = db.checkImageSignature(signature, type, false);
-						if(imageId == null){
-							//throw new Exception("Exception while downloading/registering image");
+						if(imageId == null)
 							return downloadAndRegister(imageInfo, type);
-						}
 					}
 				}
-			}else{
+			} else {
 				String imagePath, hash;
-				try{
+				try {
 					Pair<String, String> downloadInfo = download(signature, url);
 					imagePath = downloadInfo.getFirst();
 					hash = downloadInfo.getSecond();
 					
-					if(!signature.equals(hash)){
-						throw new Exception("Signature mismatch for image file.");
+					if (!signature.equals(hash)) {
+						throw new Exception("Provided signature " + signature +
+								" does not match computed signature " +
+								hash + " for image at URL: " + url);
 					}
 					
-				}catch(Exception exception){
-					l.error("Exception while downloading image. Url: " + url);
+				}
+				catch (Exception exception) {
+					l.error("Exception while downloading image from URL: " + url);
 					throw exception;
 				}
 								
-				try{
+				try {
 					imageId = register(imagePath, type);
-				}catch(Exception exception){
-					l.error("Exception while registering image.");
+				}
+				catch (Exception exception){
+					l.error("Exception encountered while attempting" +
+						"to register image.");
 					throw exception;
-				}finally{
-					// change the registration status to finished so the image, if required, can be replaced by an incoming one
+				}
+				finally {
+					// change the registration status to finished so the image,
+					// if required, can be replaced by an incoming one
 					btDownload.removeReference(signature);
 				}
 				
 				db.updateImageInfo(signature, imageId, type);
-				synchronized (db) {
-					db.notifyAll();
-				}
 			}
 			
 			l.info("Image Id: " + imageId);
 			
 			return imageId;
 			
-		}catch(Exception exception){
+		}
+		catch (Exception exception) {
 			db.removeImageInfo(signature, type);
-			synchronized (db) {
-				db.notifyAll();
-			}
 			throw exception;
+		}
+		finally {
+			wakeObject = (String) dlMap.get(signature+"DAR");
+			if (wakeObject != null) {
+				synchronized (wakeObject) {
+					wakeObject.notifyAll();
+				}
+				dlMap.remove(signature+"DAR");
+			}
 		}
 	}
 	
-	/**
-	 * Calls the functions to download the required file
-	 * @param signature
-	 * @param url
-	 * @return path and hash of the downloaded file
-	 * @throws IOException 
-	 * @throws InterruptedException 
-	 */
-	private Pair<String, String> download(String signature, String url) throws Exception {
-		
-		l.info("Downloading file with Signature: " + signature + " from url: " + url);
-		
-		// calling function to download file
-		Pair<String, String> downloadInfo = btDownload.downloadFile(url, signature);
-		
-		l.info("File downloaded. Path: " + downloadInfo.getFirst() + " , Hash: " + downloadInfo.getSecond());
-
-		return downloadInfo;
-	}
-
 	/**
 	 * function to download and register an image
 	 * @param imagePath
