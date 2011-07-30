@@ -41,26 +41,17 @@ public class SqliteBase {
     protected final String driverPath = "org.sqlite.JDBC";
 
     /**
-     * 
-     */
-    public static final String proxySettingProperties="orca.imageproxy.imageproxy-settings";
-    
-    
-    /**
      * Creates a new instance.
      * @throws SQLException 
      * @throws ClassNotFoundException 
      */
     protected SqliteBase() throws ClassNotFoundException, SQLException
     {
-    	ClassLoader loader = this.getClass().getClassLoader();
-		Properties p = PropertyLoader.loadProperties(proxySettingProperties, loader);
-		PropertyConfigurator.configure(p);
-		logger = Logger.getLogger(this.getClass().getCanonicalName());
-		
-		this.configure(p);
-		
-		//this.initialize();
+	Properties p = Globals.getInstance().getProperties();
+	PropertyConfigurator.configure(p);
+	logger = Logger.getLogger(this.getClass().getCanonicalName());
+
+	this.configure(p);
     }
 
     /**

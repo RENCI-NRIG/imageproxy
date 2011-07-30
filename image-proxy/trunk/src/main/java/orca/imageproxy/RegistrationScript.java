@@ -100,7 +100,9 @@ public class RegistrationScript {
 				String hash = downloadInfo.getSecond();
 				
 				if(!hash.equals(signature)){
-					throw new Exception("Signature mismatch for metadata file.");
+					throw new Exception("Provided signature " + signature +
+							" does not match computed signature " +
+							hash + " for metadata file at URL: " + url);
 				}
 				
 				String emi, eki, eri;
@@ -191,7 +193,7 @@ public class RegistrationScript {
 	 * @return
 	 * @throws Exception
 	 */
-	private Map<String, Pair<String, String>> parseMetadata(String metadataFilePath) throws Exception{
+	private Map<String, Pair<String, String>> parseMetadata(String metadataFilePath) throws Exception {
 		
 		List<String> validImageTypes = new ArrayList<String>();
 		validImageTypes.add(Globals.FILE_SYSTEM_IMAGE_KEY);
@@ -223,37 +225,61 @@ public class RegistrationScript {
 				if (imgNode.getNodeType() == Node.ELEMENT_NODE) {
 		  
 					Element imgElmnt = (Element) imgNode;
-					
-					NodeList imgTypeElmntLst = imgElmnt.getElementsByTagName("type");
-					Element imgTypeElmnt = (Element) imgTypeElmntLst.item(0);
-					NodeList imageType = imgTypeElmnt.getChildNodes();
-					if(imageType.getLength()!=0 && validImageTypes.contains(((Node) imageType.item(0)).getNodeValue().trim())){
-						type = ((Node) imageType.item(0)).getNodeValue();
-						l.info("Image Type : "  + type);
-					}else{
-						l.info("Invalid image type");
-						continue;
-					}
-					
-					NodeList imgSignElmntLst = imgElmnt.getElementsByTagName("signature");
-					Element imgSignElmnt = (Element) imgSignElmntLst.item(0);
-					NodeList imgSign = imgSignElmnt.getChildNodes();
-					if(imgSign.getLength()!=0 && !((Node) imgSign.item(0)).getNodeValue().trim().equals("")){
-						signature = ((Node) imgSign.item(0)).getNodeValue();
-						l.info("Signature : " + signature);
-					}else{
-						l.info("Invalid Signature");
-						continue;
-					}
-					
+
 					NodeList imgUrlElmntLst = imgElmnt.getElementsByTagName("url");
 					Element imgUrlElmnt = (Element) imgUrlElmntLst.item(0);
 					NodeList imgUrl = imgUrlElmnt.getChildNodes();
-					if(imgUrl.getLength()!=0 && !((Node) imgUrl.item(0)).getNodeValue().trim().equals("")){
-						url = ((Node) imgUrl.item(0)).getNodeValue();
-						l.info("Url : " + url);
-					}else{
-						l.info("Invalid Url");
+					if (imgUrl.getLength() != 0) {
+						url = ((Node) imgUrl.item(0)).getNodeValue().trim();
+						if (url.equals("")) {
+							l.info("URL element cannot be empty.");
+							continue;
+						}
+						else {
+							l.info("URL: " + url);
+						}
+					}
+					else {
+						l.info("URL element missing.");
+						continue;
+					}
+					
+					NodeList imgTypeElmntLst = imgElmnt.getElementsByTagName("type");
+					Element imgTypeElmnt = (Element) imgTypeElmntLst.item(0);
+					NodeList imgType = imgTypeElmnt.getChildNodes();
+					if (imgType.getLength() != 0) {
+						type = ((Node) imgType.item(0)).getNodeValue().trim();
+						if (validImageTypes.contains(type)) {
+							l.info("Image Type: "  + type);
+						}
+						else {
+							l.info("Invalid image type: \"" + type +
+								"\" for image URL: " + url);
+							continue;
+						}
+					}
+					else {
+						l.info("Type element missing for image URL: " + url);
+						continue;
+					}
+					
+					NodeList imgSignElmntLst =
+						imgElmnt.getElementsByTagName("signature");
+					Element imgSignElmnt = (Element) imgSignElmntLst.item(0);
+					NodeList imgSign = imgSignElmnt.getChildNodes();
+					if (imgSign.getLength() != 0) {
+						signature = ((Node) imgSign.item(0)).getNodeValue().trim();
+						if (signature.equals("")) {
+							l.info("Signature element cannot be empty " +
+								"for image URL: " + url);
+							continue;
+						}
+						else {
+							l.info("Signature: " + signature);
+						}
+					}
+					else {
+						l.info("Signature element missing for image URL: " + url);
 						continue;
 					}
 					
@@ -261,7 +287,8 @@ public class RegistrationScript {
 				}
 			}
 			
-		}catch(Exception exception){
+		}
+		catch (Exception exception){
 			l.error("Exception while parsing metadata.");
 			throw exception;
 		}
@@ -277,7 +304,7 @@ public class RegistrationScript {
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	private Pair<String, String> download(String signature, String url) throws Exception {
+	Pair<String, String> download(String signature, String url) throws Exception {
 		
 		l.info("Downloading file with signature: " + signature + " from url: " + url);
 		

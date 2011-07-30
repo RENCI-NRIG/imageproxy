@@ -33,7 +33,7 @@ public abstract class PropertyLoader
 	 * @throws IllegalArgumentException if the resource was not found and
 	 * THROW_ON_LOAD_FAILURE is true
 	 */
-	public static Properties loadProperties (String name, ClassLoader loader)
+	public static Properties loadProperties (String name, ClassLoader loader, boolean loadAsResource)
 	{
 		if (name == null)
 			throw new IllegalArgumentException ("null input: name");
@@ -51,7 +51,7 @@ public abstract class PropertyLoader
 		{
 			if (loader == null) loader = ClassLoader.getSystemClassLoader ();
 
-			if (LOAD_AS_RESOURCE_BUNDLE)
+			if (loadAsResource)
 			{    
 				name = name.replace ('/', '.');
 				// Throws MissingResourceException on lookup failures:
@@ -110,7 +110,7 @@ public abstract class PropertyLoader
 	public static Properties loadProperties (final String name)
 	{
 		return loadProperties (name,
-				Thread.currentThread ().getContextClassLoader ());
+				Thread.currentThread ().getContextClassLoader (), LOAD_AS_RESOURCE_BUNDLE);
 	}
 
 	private static final boolean THROW_ON_LOAD_FAILURE = false;

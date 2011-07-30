@@ -1,5 +1,7 @@
 package orca.imageproxy;
 
+import java.io.File;
+
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
@@ -11,6 +13,7 @@ public class Globals {
 	private Logger l;
 	private static final Globals i = new Globals();
 	private Properties p;
+	public static final String proxySettingPropertiesFile="imageproxy-settings.properties";
 	public static final String proxySettingProperties="orca.imageproxy.imageproxy-settings";
 	public static final String SuperblockLocation = "db_registry_state_recovery.lock";
 	public static final String DLSuperblockLocation = "db_download_state_recovery.lock";
@@ -26,9 +29,22 @@ public class Globals {
 		// instead of getting Classloader.getSystemClassloader()
 		// for Tomcat we need to try to get the app classloader
 		ClassLoader loader = this.getClass().getClassLoader();
-		p = PropertyLoader.loadProperties(proxySettingProperties, loader);
+
+		File f = new File(proxySettingPropertiesFile);
+		boolean loadAsResource = true;
+		String propsLocation = proxySettingProperties;
+
+		if (f.exists()) {
+			loadAsResource = false;
+			propsLocation = proxySettingPropertiesFile;
+		}
+		p = PropertyLoader.loadProperties(propsLocation, loader, loadAsResource);
+
 		PropertyConfigurator.configure(p);
 		l = Logger.getLogger(this.getClass());
+
+		if (loadAsResource) l.info("Global configuration loaded from defaults.");
+		else l.info("Global configuration loaded from: " + f.getPath());
 	}
 	
 	public static Globals getInstance() {

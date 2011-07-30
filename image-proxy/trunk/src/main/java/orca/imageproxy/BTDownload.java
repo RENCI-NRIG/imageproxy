@@ -11,7 +11,6 @@ import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
@@ -23,9 +22,6 @@ public class BTDownload {
 	
 	Logger l;
 
-	//list of files that are still downloading
-	private LinkedList<String> activeDownloadList;
-	
 	public final static String imageproxyHome = System.getenv("IMAGEPROXY_HOME");
 	
 	// the directory the files are downloaded to
@@ -58,22 +54,32 @@ public class BTDownload {
 		
 		sqliteDLDatabase = SqliteDLDatabase.getInstance();
 		
-		activeDownloadList = new LinkedList<String>();
-		
 		Properties p = Globals.getInstance().getProperties();
 		if (p.containsKey(cacheSizeProperty)) {
 			String spacesizeString=p.getProperty(cacheSizeProperty);
 			if(spacesizeString!=null) {
-				int factor = 1;
-				try{
-					factor = Integer.parseInt(spacesizeString);
-				}catch(NumberFormatException e){
-					throw new NumberFormatException("can't recognize the number format of property spacesize.");
+				long newCacheSize;
+				float factor;
+				try {
+					factor = Float.parseFloat(spacesizeString);
 				}
-				if(factor > 0)
-					BTDownload.CACHE_SIZE = BTDownload.CACHE_SIZE * factor;
-				else
-					throw new NumberFormatException("the spacesize should be larger than 0.");
+				catch (NumberFormatException e) {
+					l.warn("Hrm. " + cacheSizeProperty + " is specified " +
+						"in an unrecognized numbering system; " +
+						"using the default of " + BTDownload.CACHE_SIZE + 
+						" until user decides simple decimals are a valid option.");
+					factor = 1;
+				}
+				newCacheSize = (long) (BTDownload.CACHE_SIZE * factor);
+				if (newCacheSize > 0) {
+					BTDownload.CACHE_SIZE = newCacheSize;
+				}
+				else {
+					l.warn("Requested " + cacheSizeProperty + " would result " +
+						"in a cache size of 0 or less. Defaulting to " +
+						BTDownload.CACHE_SIZE +
+						" until user can quit fooling around.");
+				}
 			}
 		}
 		
@@ -98,59 +104,74 @@ public class BTDownload {
 	 */
 	public Pair<String, String> downloadFile(String surl, String signature) throws Exception
 	{
-		try{
-			
+		ActiveDownloadMap dlMap = ActiveDownloadMap.getInstance();
+		String wakeObject;
+
+		try {
 			URL url = new URL(surl);
 			String filename = url.getFile();
 			
-			String downloadType;
-			if (filename.endsWith(".torrent")) {
+			String downloadType = DOWNLOADTYPE_HTTP;
+			if (filename.endsWith(".torrent")) 
 				downloadType = DOWNLOADTYPE_BT;
-			}else{
-				downloadType = DOWNLOADTYPE_HTTP;
+
+			String filePath = sqliteDLDatabase.checkDownloadList(signature, true,
+									surl, downloadType);
+			wakeObject = (String) dlMap.get(signature+"DF");
+			if (wakeObject == null) {
+				String newWakeObject;
+				if (filePath == null)
+					newWakeObject = new String(Globals.IMAGE_INPROGRESS);
+				else
+					newWakeObject = new String(filePath);
+				wakeObject = (String) dlMap.putIfAbsent(signature+"DF", newWakeObject);
+				if (wakeObject == null) wakeObject = newWakeObject;
 			}
-			
-			String filePath = sqliteDLDatabase.checkDownloadList(signature, true, surl, downloadType);
 			
 			// null means we get to load it, otherwise wait and return file information
 			if (filePath != null) {
-				
-				synchronized(sqliteDLDatabase) {
+				synchronized(wakeObject) {
 					while (Globals.IMAGE_INPROGRESS.equals(filePath)) {
-						l.info("File download in progress; awaiting completion.");
+						l.info("File download for URL: " + surl +
+							" in progress; awaiting completion.");
 						try {
-							// wait for other threads to download the file
-							sqliteDLDatabase.wait();
+							// wait some other thread to download the file
+							wakeObject.wait();
 						} catch (InterruptedException e) {
 							;
 						}
-						l.info("Awakened while waiting for file to download; checking to see if complete...");
-						filePath = sqliteDLDatabase.checkDownloadList(signature, false, null, null);
+						l.info("Awakened while waiting for file to download; " +
+							"checking to see if complete...");
+						filePath = sqliteDLDatabase.checkDownloadList(signature, 
+											false, null, null);
 						
 						//Exception while downloading file
-						if(filePath == null){
+						if(filePath == null) {
 							return downloadFile(surl, signature);
 						}
 					}
-					l.info("File downloaded.");
+					l.info("File download from URL: " + surl + " complete.");
 					return new Pair<String, String>(filePath, signature);
 				}
-			}else{
-				l.info("Downloading file");
+			} else {
+				l.info("Downloading file from URL: " + surl);
 				Pair<String, String> fileInfo = controller(signature, surl, downloadType);
-				synchronized (sqliteDLDatabase) {
-					sqliteDLDatabase.notifyAll();
-				}
-				l.info("File downloaded.");
+				l.info("File downloaded from URL: " + surl);
 				return fileInfo;
 			}
 			
-		}catch(Exception e){
+		} catch(Exception e) {
 			sqliteDLDatabase.deleteEntry(signature);
-			synchronized (sqliteDLDatabase) {
-				sqliteDLDatabase.notifyAll();
-			}
 			throw e;
+		}
+		finally {
+			wakeObject = (String) dlMap.get(signature+"DF");
+			if (wakeObject != null) {
+				synchronized (wakeObject) {
+					wakeObject.notifyAll();
+				}
+				dlMap.remove(signature+"DF");
+			}
 		}
 	}
 	
@@ -163,27 +184,34 @@ public class BTDownload {
 	 */
 	private Pair<String, String> controller(String fileSignature, String surl, String downloadType) throws Exception
 	{
-		checkSpace(fileSignature, surl, downloadType);
+		findFreeStorage(fileSignature, surl, downloadType);
 		
 		String correctSign = downloadfromURL(surl, fileSignature, downloadType);
-		l.info("File finished downloading");
 		
-		if(fileSignature.equals(correctSign)){
-			return new Pair<String, String>(BTDownload.DOWNLOADFOLDER + File.separator + fileSignature, fileSignature);
-		}else{
-			return new Pair<String, String>(null, correctSign);
+		if (fileSignature.equals(correctSign)) {
+			l.info("File finished downloading; signature verified.");
+			return new Pair<String, String>(BTDownload.DOWNLOADFOLDER + 
+							File.separator + fileSignature, fileSignature);
+		}
+		else {
+			l.info("File finished downloading, but failed signature verification.");
+			return new Pair<String, String>("INVALID SIGNATURE", correctSign);
 		}
 		
 	}
 	
 	/**
-	 * Checks if enough space is available to download the file. If not, tries to make space.
+	 * Checks if enough storage is available to download the file.
+	 * If not, it tries to allocate sufficient storage to store the file
+	 * by emptying the storage cache according to an LRU policy.
+	 * If there is still insufficient storage after trying to clear the
+	 * storage cache, an exception will be thrown.
 	 * @param fileSignature
 	 * @param surl
 	 * @throws Exception
 	 */
-	private synchronized void checkSpace(String fileSignature, String surl, String downloadType) throws Exception{
-		
+	private synchronized void findFreeStorage (String fileSignature, String surl, String downloadType)
+	throws Exception {
 		//fetching the size of the file to be downloaded
 		long fileSize = getFileSize(surl, downloadType);
 		l.info("File (" + fileSignature + ") size is " + fileSize + "bytes");
@@ -198,21 +226,24 @@ public class BTDownload {
 		while (fileSize > (BTDownload.CACHE_SIZE - existingdatasize)) {
 			Entry e = sqliteDLDatabase.getMostStaleEntry();
 			
-			if(e==null) {
-				throw new IOException("There isn't enough space to download file " + fileSignature);
+			if (e == null) {
+				throw new IOException("Insufficient storage to download file: " +
+							fileSignature + " from URL: " + surl);
 			}
-			l.info("File " + e.getSignature() + "(" + e.getFilesize() + " bytes) is going to be deleted");
+			l.info("File " + e.getSignature() + "(" + e.getFilesize() +
+				" bytes) is going to be deleted");
 			
-			if(DOWNLOADTYPE_BT.equals(e.getDownloadType())){
+			if (DOWNLOADTYPE_BT.equals(e.getDownloadType())) {
 				try{
 					deleteImageBT(e.getSignature(), e.getTorrentFilePath());
 				}catch(Exception exception){
 					throw new IOException("Couldn't delete file " + e.getFilePath());
 				}
-			}else{
+			}
+			else {
 				File file = new File(e.getFilePath());
 				boolean result = file.delete();
-				if (!result){
+				if (!result) {
 					throw new IOException("Couldn't delete file " + e.getFilePath());
 				}
 			}
@@ -220,7 +251,8 @@ public class BTDownload {
 			//delete entry (for the deleted file) from database
 			sqliteDLDatabase.deleteEntry(e.getSignature());
 			
-			l.info("File (" + e.getSignature() + ") (" + e.getFilesize() + " bytes) is deleted");
+			l.info("File (" + e.getSignature() + ") (" +
+				e.getFilesize() + " bytes) is deleted");
 			
 			//reset existing data size
 			existingdatasize -= e.getFilesize();
@@ -301,48 +333,46 @@ public class BTDownload {
 		URL url = new URL(surl);
 		
 		BufferedInputStream bis;
-		try{
+		try {
 			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 			bis = new BufferedInputStream(connection.getInputStream());
-		}catch(IOException ioException){
-			throw new IOException("Exception while downloading file through http connection.");
+		}
+		catch (IOException ioException) {
+			throw new IOException("Error encountered while attempting to " +
+						"establish HTTP connection to URL: " +
+						surl + " ; reason was: " + ioException.getMessage());
 		}
 		
 		File newfile = new File(BTDownload.DOWNLOADFOLDER + File.separator + signature);
 		
-		try{
+		try {
 			BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(newfile));
 			int b;
-			while ((b = bis.read()) != -1) {
-				fos.write(b);
-			}
+			while ((b = bis.read()) != -1) fos.write(b);
 			fos.flush();
 			fos.close();
-		}catch(IOException ioException){
-			throw new IOException("Error while writing data to file " + newfile);
+		}
+		catch (IOException ioException) {
+			throw new IOException("Error encountered while writing to file: " +
+						newfile.getPath() + " ; reason was: " +
+						ioException.getMessage());
 		}
 		
 		String correctHash = Util.getFileHash(newfile.getPath());
-		
-		//the user-provided hash is incorrect, correct the hash in database and update its download status
-		if(!correctHash.equals(signature)){
-			l.warn("The provided signature " + signature + " is incorrect");
-			
-			//check if another entry with the correct signature exists, if so delete the downloaded file
-			if(sqliteDLDatabase.checkDownloadList(correctHash, true, url.toURI().toString(), DOWNLOADTYPE_HTTP) != null){
-				sqliteDLDatabase.deleteEntry(signature);
-				boolean deleteresult = newfile.delete();
-				if(!deleteresult)
-					throw new IOException("Failed to delete the redundant file " + newfile.getPath());
-			}else{
-				newfile.renameTo(new File(BTDownload.DOWNLOADFOLDER + File.separator + correctHash));
-				sqliteDLDatabase.updateFilePath(correctHash, newfile.getPath());
-				sqliteDLDatabase.updateDownloadStatus(correctHash, 1);
-			}
-				
-		}else{
+		if (correctHash.equals(signature)) {
 			sqliteDLDatabase.updateFilePath(correctHash, newfile.getPath());
 			sqliteDLDatabase.updateDownloadStatus(correctHash, 1);
+		}
+		else {
+			// Uh-oh. Somebody made a mistake with the hash they
+			// provided, or else tampering may have occurred.
+			// Clean up, and fail loudly.
+			l.warn("The provided signature " + signature +
+				" does not match the computed signature " + correctHash);
+			sqliteDLDatabase.deleteEntry(signature);
+			if(!newfile.delete())
+				l.warn("An error occurred while trying to delete: " +
+					newfile.getPath() + " ; manual cleanup may be required.");
 		}
 		
 		return correctHash;
@@ -379,28 +409,23 @@ public class BTDownload {
 		String url = items[1];
 		String torrentFilePath = items[2];
 		
-		String correctHash = Util.getFileHash(BTDownload.DOWNLOADFOLDER + File.separator + signature);
-		
-		//the user-provided hash is incorrect, correct the hash in database and update its download status
-		if(!correctHash.equals(signature)){
-			l.warn("The provided signature " + signature + " is incorrect");
-			
-			//check if another entry with the correct signature exists, if so delete the downloaded image
-			if(sqliteDLDatabase.checkDownloadList(correctHash, true, url, DOWNLOADTYPE_BT) != null){
-				sqliteDLDatabase.deleteEntry(signature);
-				deleteImageBT(signature, torrentFilePath);
-			}else{
-				File file = new File(BTDownload.DOWNLOADFOLDER + File.separator + signature);
-				file.renameTo(new File(BTDownload.DOWNLOADFOLDER + File.separator + correctHash));
-				sqliteDLDatabase.updateFilePath(correctHash, file.getPath());
-				sqliteDLDatabase.updateTorrentFilePath(correctHash, torrentFilePath);
-				sqliteDLDatabase.updateDownloadStatus(correctHash, 1);
-			}
-				
-		}else{
-			sqliteDLDatabase.updateFilePath(correctHash, BTDownload.DOWNLOADFOLDER + File.separator + correctHash);
+		String correctHash = Util.getFileHash(BTDownload.DOWNLOADFOLDER + File.separator +
+							signature);
+		if (correctHash.equals(signature)) {
+			sqliteDLDatabase.updateFilePath(correctHash,
+							BTDownload.DOWNLOADFOLDER + File.separator +
+							correctHash);
 			sqliteDLDatabase.updateTorrentFilePath(correctHash, torrentFilePath);
 			sqliteDLDatabase.updateDownloadStatus(correctHash, 1);
+		}
+		else {
+			// Uh-oh. Somebody made a mistake with the hash they
+			// provided, or else tampering may have occurred.
+			// Clean up, and fail loudly.
+			l.warn("The provided signature " + signature +
+				" does not match the computed signature " + correctHash);
+			sqliteDLDatabase.deleteEntry(signature);
+			deleteImageBT(signature, torrentFilePath);
 		}
 		
 		return correctHash;

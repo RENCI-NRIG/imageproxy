@@ -23,12 +23,14 @@ public class SqliteDatabase extends SqliteBase{
     	super();
     	determineBootMode();
     	initialize();
+	if (!resetState) cleanupInProgressImages();
     }
 
     private void determineBootMode() throws IOException {
         File superBlockFile = new File(Globals.SuperblockLocation);
         File dbFile = new File(db);
-        logger.debug("Checking if this container is recovering. Looking for: " + Globals.SuperblockLocation);
+        logger.debug("Checking if this container is recovering. Looking for: " +
+			Globals.SuperblockLocation);
         if (superBlockFile.exists() && dbFile.exists()) {
         	logger.debug("Found superblock and database file. This container is recovering");
         	resetState = false;
@@ -47,6 +49,12 @@ public class SqliteDatabase extends SqliteBase{
         p.store(os, "This file tells the image proxy container to maintain its state on recovery. Hence, removing this file will make the container discard and reset its state.");
         os.close();
         logger.debug("Superblock created successfully");
+    }
+
+    private synchronized void cleanupInProgressImages() throws SQLException {
+        logger.debug("Removing image IDs left in \"IN PROGRESS\" state at shutdown.");
+    	String query = "DELETE FROM IMAGE WHERE IMAGE_ID = " + dbString(Globals.IMAGE_INPROGRESS);
+    	executeUpdate(query);
     }
     
     public synchronized String checkImageSignature(String signature, String type, boolean mark) throws SQLException{
