@@ -106,6 +106,7 @@ public class BTDownload {
 	{
 		ActiveDownloadMap dlMap = ActiveDownloadMap.getInstance();
 		String wakeObject;
+		String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
 
 		try {
 			URL url = new URL(surl);
@@ -117,14 +118,15 @@ public class BTDownload {
 
 			String filePath = sqliteDLDatabase.checkDownloadList(signature, true,
 									surl, downloadType);
-			wakeObject = (String) dlMap.get(signature+"DF");
+			wakeObject = (String) dlMap.get(signature+methodName);
 			if (wakeObject == null) {
 				String newWakeObject;
 				if (filePath == null)
 					newWakeObject = new String(Globals.IMAGE_INPROGRESS);
 				else
 					newWakeObject = new String(filePath);
-				wakeObject = (String) dlMap.putIfAbsent(signature+"DF", newWakeObject);
+				wakeObject = (String) dlMap.putIfAbsent(signature+methodName,
+									newWakeObject);
 				if (wakeObject == null) wakeObject = newWakeObject;
 			}
 			
@@ -165,12 +167,12 @@ public class BTDownload {
 			throw e;
 		}
 		finally {
-			wakeObject = (String) dlMap.get(signature+"DF");
+			wakeObject = (String) dlMap.get(signature+methodName);
 			if (wakeObject != null) {
 				synchronized (wakeObject) {
 					wakeObject.notifyAll();
 				}
-				dlMap.remove(signature+"DF");
+				dlMap.remove(signature+methodName);
 			}
 		}
 	}

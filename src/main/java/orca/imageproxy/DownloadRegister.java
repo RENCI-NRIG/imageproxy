@@ -33,6 +33,7 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 		
 		ActiveDownloadMap dlMap = ActiveDownloadMap.getInstance();
 		String wakeObject;
+		String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
 		String signature = imageInfo.get(type).getFirst();
 		String url = imageInfo.get(type).getSecond();
 		
@@ -42,14 +43,15 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 		try {
 			// see if this file with given signature is present in registry
 			String imageId = db.checkImageSignature(signature, type, true);
-			wakeObject = (String) dlMap.get(signature+"DAR");
+			wakeObject = (String) dlMap.get(signature+methodName);
 			if (wakeObject == null) {
 				String newWakeObject;
 				if (imageId == null)
 					newWakeObject = new String(Globals.IMAGE_INPROGRESS);
 				else
 					newWakeObject = new String(imageId);
-				wakeObject = (String) dlMap.putIfAbsent(signature+"DAR", newWakeObject);
+				wakeObject = (String) dlMap.putIfAbsent(signature+methodName,
+									newWakeObject);
 				if (wakeObject == null) wakeObject = newWakeObject;
 			}
 
@@ -119,12 +121,12 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 			throw exception;
 		}
 		finally {
-			wakeObject = (String) dlMap.get(signature+"DAR");
+			wakeObject = (String) dlMap.get(signature+methodName);
 			if (wakeObject != null) {
 				synchronized (wakeObject) {
 					wakeObject.notifyAll();
 				}
-				dlMap.remove(signature+"DAR");
+				dlMap.remove(signature+methodName);
 			}
 		}
 	}
