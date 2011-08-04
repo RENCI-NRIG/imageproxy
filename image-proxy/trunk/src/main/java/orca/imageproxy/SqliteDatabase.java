@@ -61,27 +61,26 @@ public class SqliteDatabase extends SqliteBase{
     	String query = "SELECT * FROM IMAGE WHERE SIGNATURE = " + dbString(signature);
 
     	Connection connection = getConnection();
+	String imgID = null;
+	try {
+		Statement statement = connection.createStatement();
 		try {
-			Statement statement = connection.createStatement();
+			statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
+			ResultSet rs = statement.executeQuery(query);
 			try {
-				statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
-				ResultSet rs = statement.executeQuery(query);
-				try {
-					if(rs.next()) {
-						return rs.getString("IMAGE_ID");
-					} else {
-						if(mark) {
-							query = "INSERT INTO IMAGE VALUES ( " + dbString(signature) + " , " + dbString(Globals.IMAGE_INPROGRESS) + " )";
-							statement.executeUpdate(query);
-						}
-						return null;
-					}
-				}
-				finally { rs.close(); }
+				if(rs.next()) imgID = rs.getString("IMAGE_ID");
 			}
-			finally { statement.close(); }
+			finally { rs.close(); }
+			if (mark && (imgID == null)) {
+				query = "INSERT INTO IMAGE VALUES ( " + dbString(signature) + " , " + dbString(Globals.IMAGE_INPROGRESS) + " )";
+				statement.executeUpdate(query);
+			}
 		}
-		finally { connection.close(); }
+		finally { statement.close(); }
+	}
+	finally { connection.close(); }
+
+	return imgID;
     }
     
     public synchronized int updateImageInfo(String signature, String imageId, String type) throws SQLException{

@@ -65,36 +65,46 @@ public class SqliteDLDatabase extends SqliteBase{
     public synchronized String checkDownloadList(String signature, boolean mark, String url, String downloadType) throws SQLException{
 		String query = "SELECT * FROM " + filestable + " WHERE SIGNATURE = " + dbString(signature);
 		Connection connection = getConnection();
+		String path = null;
 		try {
 			Statement statement = connection.createStatement();
+			int newRef = 1;
+			int newActiveRef = 1;
 			try {
 				statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
 				ResultSet rs = statement.executeQuery(query);
 				try {
-					if(rs.next()) {
-						String path = rs.getString("FILEPATH");
-						if(mark){
-							int newRef = rs.getInt("REF") + 1;
-							int newActiveRef = rs.getInt("ACTIVEREF") + 1;
-							query = "UPDATE " + filestable + " SET REF = " + newRef + ", ACTIVEREF = " + newActiveRef + ", LASTREF = " + System.currentTimeMillis() + " WHERE SIGNATURE = " + dbString(signature);
-							statement.executeUpdate(query);
-						}
-						return path;
-					}else{
-						if(mark) {
-							query = "INSERT INTO " + filestable + " VALUES (" + 
-							dbString(signature) + ", " + dbString(Globals.IMAGE_INPROGRESS) + ", 0, 1, 1, 0, 0, " + System.currentTimeMillis() + ", " + dbString(downloadType) + ", " + dbString(url) + ", null)";
-							//SIGNATURE, FILEPATH, FILESIZE, REF, ACTIVEREF, SEEDING, STATUS, LASTREF, DOWNLOADTYPE, URL, TORRENTFILEPATH
-							statement.executeUpdate(query);
-						}
-						return null;
+					if (rs.next()) {
+						path = rs.getString("FILEPATH");
+						newRef = rs.getInt("REF") + 1;
+                                        	newActiveRef = rs.getInt("ACTIVEREF") + 1;
 					}
 				}
 				finally { rs.close(); }
+				if (mark) {
+					if (path != null) {
+						query = "UPDATE " + filestable + " SET REF = " + newRef +
+							", ACTIVEREF = " + newActiveRef +
+							", LASTREF = " + System.currentTimeMillis() +
+							" WHERE SIGNATURE = " + dbString(signature);
+					}
+					else {
+					// SIGNATURE, FILEPATH, FILESIZE, REF, ACTIVEREF, SEEDING, STATUS,
+					// LASTREF, DOWNLOADTYPE, URL, TORRENTFILEPATH
+						query = "INSERT INTO " + filestable + " VALUES (" + 
+						dbString(signature) + ", " +
+						dbString(Globals.IMAGE_INPROGRESS) +
+						", 0, 1, 1, 0, 0, " + System.currentTimeMillis() + ", " +
+						dbString(downloadType) + ", " + dbString(url) + ", null)";
+					}
+					statement.executeUpdate(query);
+				}
 			}
 			finally { statement.close(); }
 		}
 		finally { connection.close(); }
+
+		return path;
 	}
     
     public synchronized void updateFileSize(String signature, long fileSize) throws SQLException{
@@ -268,27 +278,23 @@ public class SqliteDLDatabase extends SqliteBase{
 		String query = "SELECT * FROM " + filestable + " WHERE SIGNATURE = " + dbString(signature);
 		Connection connection = getConnection();
 		try {
-			connection.setAutoCommit(false);
 			Statement statement = connection.createStatement();
+			int newActiveRef = -1;
 			try {
 				statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
 				ResultSet rs = statement.executeQuery(query);
 				try {
-					if(rs.next()) {
-						int newActiveRef = rs.getInt("ACTIVEREF") - 1;
-						query = "UPDATE " + filestable + " SET ACTIVEREF = " + newActiveRef + " WHERE SIGNATURE = " + dbString(signature);
-						statement.executeUpdate(query);
-					}
+					if(rs.next()) newActiveRef = rs.getInt("ACTIVEREF") - 1;
 				}
 				finally { rs.close(); }
+				if (newActiveRef > -1) {
+					query = "UPDATE " + filestable + " SET ACTIVEREF = " + newActiveRef + " WHERE SIGNATURE = " + dbString(signature);
+					statement.executeUpdate(query);
+				}	
 			}
 			finally { statement.close(); }
 		}
-		finally {
-			connection.commit();
-			connection.setAutoCommit(true);
-			connection.close();
-		}
+		finally { connection.close(); }
 	}
 	
 	@Override
