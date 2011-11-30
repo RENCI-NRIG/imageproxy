@@ -1,8 +1,10 @@
 package orca.imageproxy;
 
 import java.io.File;
-
+import java.io.IOException;
+import java.lang.Math;
 import java.util.Properties;
+import java.util.Random;
 
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
@@ -13,6 +15,7 @@ public class Globals {
 	private Logger l;
 	private static final Globals i = new Globals();
 	private Properties p;
+        private String tmpDir;
 	public static final String proxySettingPropertiesFile="imageproxy-settings.properties";
 	public static final String proxySettingProperties="orca.imageproxy.imageproxy-settings";
 	public static final String SuperblockLocation = "db_registry_state_recovery.lock";
@@ -25,6 +28,10 @@ public class Globals {
 	public static final String IMAGE_INPROGRESS = "INPROGRESS";
 	public static final String ERROR_CODE = "ERROR";
 	
+        private static final String tmpDirBaseProperty = "imageproxy.tmpDirBase";
+        private static final String DEFAULT_TMPDIRBASE = "/tmp";
+        private static final String TMPDIR_PREFIX = "imageproxy-";
+
 	protected Globals() {
 		// instead of getting Classloader.getSystemClassloader()
 		// for Tomcat we need to try to get the app classloader
@@ -45,6 +52,41 @@ public class Globals {
 
 		if (loadAsResource) l.info("Global configuration loaded from defaults.");
 		else l.info("Global configuration loaded from: " + f.getPath());
+
+                String tmpDirBase = p.getProperty(tmpDirBaseProperty);
+		if (tmpDirBase == null || tmpDirBase.length() == 0)
+                    tmpDirBase = System.getProperty("java.io.tmpdir");
+                if (tmpDirBase == null)
+                    tmpDirBase = DEFAULT_TMPDIRBASE;
+
+                File tmpDir = null;
+                Random rn = new Random();
+                int failCount = 0;
+                do {
+                    tmpDir = new File(tmpDirBase, TMPDIR_PREFIX + Math.abs(rn.nextInt()));
+                    failCount++;
+                }
+                while (tmpDir.exists() && failCount < 10);
+
+                if (!tmpDir.exists() && tmpDir.mkdir()) {
+                    // Set permissions to rwx by owner *only*.
+                    // We do this by first clearing permissions for *everyone*,
+                    // then by adding them back for the owner only (second parameter is true).
+                    tmpDir.setReadable(false, false);
+                    tmpDir.setReadable(true, true);
+                    tmpDir.setWritable(false, false);
+                    tmpDir.setWritable(true, true);
+                    tmpDir.setExecutable(false, false);
+                    tmpDir.setExecutable(true, true);
+                    l.info("Temp directory located in: " + tmpDir);
+                }
+                else {
+                    l.error("Creation of unique temp directory failed; " +
+                            "falling back to using " + tmpDirBase);
+                    tmpDir = new File(tmpDirBase);
+                }
+
+                this.tmpDir = tmpDir.toString();
 	}
 	
 	public static Globals getInstance() {
@@ -58,4 +100,8 @@ public class Globals {
 	public Logger getLogger() {
 		return getInstance().l;
 	}
+
+        public String getTmpDir() {
+                return getInstance().tmpDir;
+        }
 }

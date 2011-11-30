@@ -3,6 +3,7 @@
 #Parameter 1: Image location
 #Parameter 2: Bukkit name
 #Parameter 3: Image type (filesystem/kernel/ramdisk)
+#Parameter 4: Directory into which to bundle
 
 export PATH=${EC2_HOME}/bin:${PATH}
 
@@ -34,6 +35,10 @@ if [ -n "$3" ]; then
     fi
 fi
 
+if [ -n "$4" ]; then
+    echo "[$DATE] Parameter #4(Bundle path) is $4" >> $IMAGEPROXY_LOG
+fi    
+
 if [ -z ${PROXY_EUCA_KEY_DIR} ]; then
     echo "Need to set PROXY_EUCA_KEY_DIR"
     echo "[$DATE] Need to set PROXY_EUCA_KEY_DIR" >> $IMAGEPROXY_LOG
@@ -55,10 +60,10 @@ function exit_cleanly {
 }   
 
 echo "[$DATE] Bundling image" >> $IMAGEPROXY_LOG
-echo "[$DATE] euca-bundle-image -i $1 $BUNDLE_PARAM" >> $IMAGEPROXY_LOG
+echo "[$DATE] euca-bundle-image -d $4 -i $1 $BUNDLE_PARAM" >> $IMAGEPROXY_LOG
 
 ##bundling image, path of which is passed as a parameter to the script
-RESULT=`euca-bundle-image -i $1 $BUNDLE_PARAM 2>> $IMAGEPROXY_LOG`
+RESULT=`euca-bundle-image -d $4 -i $1 $BUNDLE_PARAM 2>> $IMAGEPROXY_LOG`
 
 exit_cleanly
 
@@ -72,7 +77,6 @@ if [ -z ${BUNDLE_MANIFEST_NAME} ]; then
 	echo "[$DATE] Unable to bundle image, exiting." >> $IMAGEPROXY_LOG
 	exit 1
 fi
-
 
 echo "[$DATE] Uploading bundled image" >> $IMAGEPROXY_LOG
 echo "[$DATE] euca-upload-bundle -b $2 -m $BUNDLE_MANIFEST_NAME" >> $IMAGEPROXY_LOG
