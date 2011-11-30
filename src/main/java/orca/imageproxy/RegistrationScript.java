@@ -32,7 +32,7 @@ public class RegistrationScript {
 	protected static final String bukkitNameProperty = "eucaBukkitName";
 	
 	protected static final String DEFAULT_BUKKIT_NAME = "imageproxy.bukkit";
-	
+
 	protected BTDownload btDownload;
 
 	protected Logger l;

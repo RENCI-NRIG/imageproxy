@@ -98,7 +98,7 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 					imageId = register(imagePath, type);
 				}
 				catch (Exception exception){
-					l.error("Exception encountered while attempting" +
+					l.error("Exception encountered while attempting " +
 						"to register image.");
 					throw exception;
 				}
@@ -139,7 +139,8 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	private String register(String imagePath, String type) throws AttributeNotFoundException, IOException, InterruptedException {
+	private String register(String imagePath, String type)
+            throws AttributeNotFoundException, IOException, InterruptedException {
 
 		l.info("Registering downloaded image.");
 		l.info("Image location: " + imagePath);
@@ -154,9 +155,11 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 		String bukkitName = Globals.getInstance().getProperties().getProperty(bukkitNameProperty);
 		if ( bukkitName == null || bukkitName.length() == 0)
 			bukkitName = DEFAULT_BUKKIT_NAME;
-		
+
 		// registration script
-		String command = BTDownload.imageproxyHome + File.separator + registerScript + " " + imagePath + " " + bukkitName + " " + type;
+		String command =
+                    BTDownload.imageproxyHome + File.separator + registerScript + " " +
+                    imagePath + " " + bukkitName + " " + type + " " + Globals.getInstance().getTmpDir();
 		
 		l.info("Invoking registration script");
 		l.debug(command);
