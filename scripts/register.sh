@@ -1,9 +1,10 @@
-#!/bin/bash 
+#!/bin/bash
 
-#Parameter 1: Image location
-#Parameter 2: Bukkit name
-#Parameter 3: Image type (filesystem/kernel/ramdisk)
-#Parameter 4: Directory into which to bundle
+# Parameter 1: Image location
+# Parameter 2: Bukkit name
+# Parameter 3: Image type (filesystem/kernel/ramdisk)
+# Parameter 4: Base directory into which to bundle
+# Parameter 5: Signature of image
 
 export PATH=${EC2_HOME}/bin:${PATH}
 
@@ -15,115 +16,149 @@ if [ -z ${DATE} ]; then
 	DATE=`date`
 fi
 
-if [ -n "$1" ]; then
-    echo "[$DATE] Parameter #1(Image location) is $1" >> $IMAGEPROXY_LOG
-fi 
-
-if [ -n "$2" ]; then
-    echo "[$DATE] Parameter #2(Bukkit name) is $2" >> $IMAGEPROXY_LOG
+MIN_PARAMS=5
+if [ $# -ne $MIN_PARAMS ]; then
+    echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+    echo "Too few parameters specified to registration script; $MIN_PARAMS required." | tee -a $IMAGEPROXY_LOG
+    exit 1
 fi
 
-if [ -n "$3" ]; then
-    echo "[$DATE] Parameter #3(Image type) is $3" >> $IMAGEPROXY_LOG
-    
-    if [ "$3" = "KERNEL" ]; then
-	BUNDLE_PARAM="--kernel true"
-    fi
-
-    if [ "$3" = "RAMDISK" ]; then
-	BUNDLE_PARAM="--ramdisk true"
-    fi
-fi
-
-if [ -n "$4" ]; then
-    echo "[$DATE] Parameter #4(Bundle path) is $4" >> $IMAGEPROXY_LOG
-fi    
+echo "[$DATE] Preparing to register new image..." >> $IMAGEPROXY_LOG
 
 if [ -z ${PROXY_EUCA_KEY_DIR} ]; then
-    echo "Need to set PROXY_EUCA_KEY_DIR"
-    echo "[$DATE] Need to set PROXY_EUCA_KEY_DIR" >> $IMAGEPROXY_LOG
+    echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+    echo "PROXY_EUCA_KEY_DIR environment variable undefined; please set. Exiting." | tee -a $IMAGEPROXY_LOG
     exit 1
-fi  
-
+fi
 echo "[$DATE] Using PROXY_EUCA_KEY_DIR as ${PROXY_EUCA_KEY_DIR}" >> $IMAGEPROXY_LOG
-
 source ${PROXY_EUCA_KEY_DIR}/eucarc
 
-function exit_cleanly {
-  EXIT=`echo $?`
-  if [ $EXIT != "0" ]
-  then
-    echo "Exception while executing script. Check logs at $IMAGEPROXY_LOG"
-    echo "[$DATE] $RESULT Exit code of $EXIT for last command.  Exiting" >> $IMAGEPROXY_LOG
+function check_exit_code {
+  if [ $? -ne 0 ]; then
+    echo "Exception while executing script. Check $IMAGEPROXY_LOG for more information."
+    echo "[$DATE] $RESULT Exit code of $EXIT for last command.  Exiting." >> $IMAGEPROXY_LOG
     exit 1
   fi
 }   
 
-echo "[$DATE] Bundling image" >> $IMAGEPROXY_LOG
-echo "[$DATE] euca-bundle-image -d $4 -i $1 $BUNDLE_PARAM" >> $IMAGEPROXY_LOG
+echo "[$DATE] Parameter #1(Image location) is $1" >> $IMAGEPROXY_LOG
+IMG_LOCATION=$1
 
-##bundling image, path of which is passed as a parameter to the script
-RESULT=`euca-bundle-image -d $4 -i $1 $BUNDLE_PARAM 2>> $IMAGEPROXY_LOG`
+echo "[$DATE] Parameter #2(Bukkit name) is $2" >> $IMAGEPROXY_LOG
+BUKKIT_NAME=$2
 
-exit_cleanly
+COMPRESSED_FILESYSTEM=false
+echo "[$DATE] Parameter #3(Image type) is $3" >> $IMAGEPROXY_LOG
+if [ "$3" = "KERNEL" ]; then
+    BUNDLE_PARAM="--kernel true"
+elif [ "$3" = "RAMDISK" ]; then
+    BUNDLE_PARAM="--ramdisk true"
+elif [ "$3" = "ZFILESYSTEM" ]; then
+    COMPRESSED_FILESYSTEM=true
+fi
+
+echo "[$DATE] Parameter #4(Bundle path) is $4" >> $IMAGEPROXY_LOG
+echo "[$DATE] Parameter #5(Signature) is $5" >> $IMAGEPROXY_LOG
+TMP_DIR="$4/$5"
+echo "[$DATE] Creating working directory $TMP_DIR" >> $IMAGEPROXY_LOG
+RESULT=`mkdir $TMP_DIR 2>> $IMAGEPROXY_LOG`
+
+check_exit_code
+
+# Uncompress compressed images before attempting to bundle
+if $COMPRESSED_FILESYSTEM; then
+    echo "[$DATE] Compressed filesystem specified; preparing to decompress." >> $IMAGEPROXY_LOG
+    RESULT=`file -i $IMG_LOCATION 2>> $IMAGEPROXY_LOG`
+    check_exit_code
+
+    UNCOMPRESSED_IMG="$TMP_DIR/$(basename $IMG_LOCATION).uncompressed"
+    if [ -n "$(echo $RESULT | grep -i 'gzip\|compress')" ]; then
+        UNCOMPRESS_CMD="gzip -dc"
+    elif [ -n "$(echo $RESULT | grep -i bzip2)" ]; then
+        UNCOMPRESS_CMD="bzip2 -dc"
+    elif [ -n "$(echo $RESULT | grep -i lzma)" ]; then
+        UNCOMPRESS_CMD="lzma -dc"
+    fi
+
+    if [ -n "$UNCOMPRESS_CMD" ]; then
+        echo "[$DATE] Uncompressing image..." >> $IMAGEPROXY_LOG
+        echo "[$DATE] $UNCOMPRESS_CMD $IMG_LOCATION > $UNCOMPRESSED_IMG" >> $IMAGEPROXY_LOG
+        RESULT=`$UNCOMPRESS_CMD $IMG_LOCATION > $UNCOMPRESSED_IMG 2>> $IMAGEPROXY_LOG`
+        check_exit_code
+    else
+        echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+        echo -n "Unsupported compressed image type. Exiting. " | tee -a $IMAGEPROXY_LOG
+        echo "Check $IMAGEPROXY_LOG for more information."
+        echo "" >> $IMAGEPROXY_LOG
+        exit 1
+    fi
+
+    IMG_LOCATION=$UNCOMPRESSED_IMG
+    echo "[$DATE] Image successfully uncompressed." >> $IMAGEPROXY_LOG
+fi
+
+## Bundling image
+BUNDLE_CMD="euca-bundle-image -d $TMP_DIR -i $IMG_LOCATION $BUNDLE_PARAM"
+echo "[$DATE] Bundling image..." >> $IMAGEPROXY_LOG
+echo "[$DATE] $BUNDLE_CMD" >> $IMAGEPROXY_LOG
+RESULT=`$BUNDLE_CMD 2>> $IMAGEPROXY_LOG`
+
+check_exit_code
 
 echo "[$DATE] $RESULT" >> $IMAGEPROXY_LOG
 
-##extracting the name of the bundled image's manifest file, which is required for uploading the image to euca storage server
+## Extract the name of the bundled image's manifest file, in preparaion for uploading the image
 BUNDLE_MANIFEST_NAME=`echo $RESULT 2> /dev/null| grep "Generating manifest" | awk '{print $NF}'`
-
 if [ -z ${BUNDLE_MANIFEST_NAME} ]; then
-	echo "Unable to bundle image, exiting. Check logs at $IMAGEPROXY_LOG"
-	echo "[$DATE] Unable to bundle image, exiting." >> $IMAGEPROXY_LOG
-	exit 1
+    echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+    echo -n "Unable to bundle image. Exiting. " | tee -a $IMAGEPROXY_LOG
+    echo "Check $IMAGEPROXY_LOG for more information."
+    echo "" >> $IMAGEPROXY_LOG
+    exit 1
 fi
 
-echo "[$DATE] Uploading bundled image" >> $IMAGEPROXY_LOG
-echo "[$DATE] euca-upload-bundle -b $2 -m $BUNDLE_MANIFEST_NAME" >> $IMAGEPROXY_LOG
+## Uploading the bundled image
+UPLOAD_CMD="euca-upload-bundle -b $BUKKIT_NAME -m $BUNDLE_MANIFEST_NAME"
+echo "[$DATE] Uploading bundled image..." >> $IMAGEPROXY_LOG
+echo "[$DATE] $UPLOAD_CMD" >> $IMAGEPROXY_LOG
+RESULT=`$UPLOAD_CMD 2>> $IMAGEPROXY_LOG`
 
-##uploading the bundled image
-RESULT=`euca-upload-bundle -b $2 -m $BUNDLE_MANIFEST_NAME 2>> $IMAGEPROXY_LOG`
-
-exit_cleanly
+check_exit_code
 
 echo "[$DATE] $RESULT" >> $IMAGEPROXY_LOG
 
-##extracting uploaded image's name, which is required for registration
+## Extracting uploaded image's name, in preparation for registration
 UPLOADED_IMAGE_NAME=`echo $RESULT 2> /dev/null| grep "Uploaded image as" | awk '{print $NF}'`
-
 if [ -z ${UPLOADED_IMAGE_NAME} ]; then
-	echo "Unable to upload bundle, exiting. Check logs at $IMAGEPROXY_LOG"
-	echo "[$DATE] Unable to upload bundle, exiting." >> $IMAGEPROXY_LOG
-	exit 1
+    echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+    echo -n "Unable to upload bundle. Exiting. " | tee -a $IMAGEPROXY_LOG
+    echo "Check $IMAGEPROXY_LOG for more information."
+    echo "" >> $IMAGEPROXY_LOG
+    exit 1
 fi
 
+## Registering the uploaded image
+REGISTER_CMD="euca-register $UPLOADED_IMAGE_NAME"
+echo "[$DATE] Registering image..." >> $IMAGEPROXY_LOG
+echo "[$DATE] $REGISTER_CMD" >> $IMAGEPROXY_LOG
+RESULT=`$REGISTER_CMD 2>> $IMAGEPROXY_LOG`
 
-echo "[$DATE] Registering image" >> $IMAGEPROXY_LOG
-echo "[$DATE] euca-register $UPLOADED_IMAGE_NAME" >> $IMAGEPROXY_LOG
-
-##registering the uploaded file
-RESULT=`euca-register $UPLOADED_IMAGE_NAME 2>> $IMAGEPROXY_LOG`
-
-exit_cleanly
+check_exit_code
 
 echo "[$DATE] $RESULT" >> $IMAGEPROXY_LOG
 
-##extracting the image id assigned by the euca server
+## Extracting the assigned image id
 IMAGE_ID=`echo $RESULT 2> /dev/null| grep "IMAGE" | awk '{print $NF}'`
-
 if [ -z ${IMAGE_ID} ]; then
-	echo "Unable to register image, exiting. Check logs at $IMAGEPROXY_LOG"
-	echo "[$DATE] Unable to register image, exiting." >> $IMAGEPROXY_LOG
-	exit 1
+    echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+    echo -n "Unable to register image. Exiting. " | tee -a $IMAGEPROXY_LOG
+    echo "Check $IMAGEPROXY_LOG for more information."
+    echo "" >> $IMAGEPROXY_LOG
+    exit 1
 fi
 
-# remove parts files from /tmp
-PARTNAME=`basename $1`.part
-MANNAME=`basename $1`.manifest.xml
-rm -f /tmp/$PARTNAME.*
-rm -f /tmp/$MANNAME
+# Remove TMP_DIR (thereby cleaning up)
+rm -rf $TMP_DIR
 
-##returning the registered image id
+## Return the registered image id
 echo "$IMAGE_ID"
-
-

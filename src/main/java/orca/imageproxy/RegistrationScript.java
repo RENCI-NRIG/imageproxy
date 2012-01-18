@@ -59,120 +59,122 @@ public class RegistrationScript {
 			}
 			btDownload = BTDownload.getInstance();
 		}catch(Exception exception){
-			l.error("Exception during initialization.");
-			l.error(exception.toString(), exception);
-			throw exception;
-		}
-	}
+                        l.error("Exception during initialization.");
+                        l.error(exception.toString(), exception);
+                        throw exception;
+                }
+        }
 
-	/**
-	 * Method to register images
-	 * @param url  url for image metadata
-	 * @param signature hash of the image, to uniquely identify it
-	 * @return registered image ids, ERROR in case of any exception
-	 */
-	public String RegisterImage(String url, String signature) throws Exception{
+        /**
+         * Method to register images
+         * @param url  url for image metadata
+         * @param signature hash of the image, to uniquely identify it
+         * @return registered image ids, ERROR in case of any exception
+         */
+        public String RegisterImage(String url, String signature) throws Exception{
 
-		try{
+                try{
 
-			Properties imageIds = new Properties();
-			
-			if (testMode) {
-				l.info("Test mode enabled. Sleeping " + testModeSleep + " msec.");
-				try {
-					Thread.sleep(testModeSleep);
-				} catch (InterruptedException e) {
-					;
-				}
-				l.info("Awake");
-				// fake cheap unique image ids
-				Double uniq = Math.floor(Math.random() * 1000);
-				imageIds.put(Globals.FILE_SYSTEM_IMAGE_KEY, url + uniq.intValue());
-				uniq = Math.floor(Math.random() * 1000);
-				imageIds.put(Globals.KERNEL_IMAGE_KEY, url + uniq.intValue());
-				uniq = Math.floor(Math.random() * 1000);
-				imageIds.put(Globals.RAMDISK_IMAGE_KEY, url + uniq.intValue());
-				
-			} else {
-				
-				Pair<String, String> downloadInfo = download(signature, url);
-				String imagePath = downloadInfo.getFirst();
-				String hash = downloadInfo.getSecond();
-				
-				if(!hash.equals(signature)){
-					throw new Exception("Provided signature " + signature +
-							" does not match computed signature " +
-							hash + " for metadata file at URL: " + url);
-				}
-				
-				String emi, eki, eri;
-				
-				try{
-					l.info("Entering download and registration process");
-					
-					Map<String, Pair<String, String>> imageInfo = parseMetadata(imagePath);
-					
-					SqliteDLDatabase.getInstance().removeReference(signature);
-					
-					if(!imageInfo.containsKey(Globals.FILE_SYSTEM_IMAGE_KEY)){
-						l.error("Valid filesystem image information could not be found in the metadata.");
-						//return Globals.ERROR_CODE;
-						throw new Exception("Valid filesystem image information could not be found in the metadata.");
-					}
-						
-					HashMap<String, Future<String>> downloadRegisterTasks = new HashMap<String, Future<String>>();
-					
+                        Properties imageIds = new Properties();
+                        
+                        if (testMode) {
+                                l.info("Test mode enabled. Sleeping " + testModeSleep + " msec.");
+                                try {
+                                        Thread.sleep(testModeSleep);
+                                } catch (InterruptedException e) {
+                                        ;
+                                }
+                                l.info("Awake");
+                                // fake cheap unique image ids
+                                Double uniq = Math.floor(Math.random() * 1000);
+                                imageIds.put(Globals.FILE_SYSTEM_IMAGE_KEY, url + uniq.intValue());
+                                uniq = Math.floor(Math.random() * 1000);
+                                imageIds.put(Globals.KERNEL_IMAGE_KEY, url + uniq.intValue());
+                                uniq = Math.floor(Math.random() * 1000);
+                                imageIds.put(Globals.RAMDISK_IMAGE_KEY, url + uniq.intValue());
+                                
+                        } else {
+                                
+                                Pair<String, String> downloadInfo = download(signature, url);
+                                String imagePath = downloadInfo.getFirst();
+                                String hash = downloadInfo.getSecond();
+                                
+                                if(!hash.equals(signature)){
+                                        throw new Exception("Provided signature " + signature +
+                                                        " does not match computed signature " +
+                                                        hash + " for metadata file at URL: " + url);
+                                }
+                                
+                                String emi, eki, eri;
+                                
+                                try{
+                                        l.info("Entering download and registration process");
+                                        
+                                        Map<String, Pair<String, String>> imageInfo = parseMetadata(imagePath);
+                                        
+                                        SqliteDLDatabase.getInstance().removeReference(signature);
+                                        
+                                        HashMap<String, Future<String>> downloadRegisterTasks = new HashMap<String, Future<String>>();
+
+                                        if (imageInfo.containsKey(Globals.FILE_SYSTEM_IMAGE_KEY)) {
+                                            downloadRegisterTasks.put(Globals.FILE_SYSTEM_IMAGE_KEY, downloadAndRegister(imageInfo, Globals.FILE_SYSTEM_IMAGE_KEY));
+                                        }
+                                        else if (imageInfo.containsKey(Globals.ZFILE_SYSTEM_IMAGE_KEY)) {
+                                            downloadRegisterTasks.put(Globals.ZFILE_SYSTEM_IMAGE_KEY, downloadAndRegister(imageInfo, Globals.ZFILE_SYSTEM_IMAGE_KEY));
+                                        }
+                                        else {
+                                            l.error("Valid filesystem image information could not be found in the metadata.");
+                                            //return Globals.ERROR_CODE;
+                                            throw new Exception("Valid filesystem image information could not be found in the metadata.");
+                                        }
+                                                
+                                        if(imageInfo.containsKey(Globals.KERNEL_IMAGE_KEY)){
+                                                l.info("Kernel image information available");
+                                                downloadRegisterTasks.put(Globals.KERNEL_IMAGE_KEY, downloadAndRegister(imageInfo, Globals.KERNEL_IMAGE_KEY));
+                                        }
+                                        
+                                        if(imageInfo.containsKey(Globals.RAMDISK_IMAGE_KEY)){
+                                                l.info("Ramdisk image information available");
+                                                downloadRegisterTasks.put(Globals.RAMDISK_IMAGE_KEY, downloadAndRegister(imageInfo, Globals.RAMDISK_IMAGE_KEY));
+                                        }
+                                        
 					//
-					downloadRegisterTasks.put(Globals.FILE_SYSTEM_IMAGE_KEY, downloadAndRegister(imageInfo, Globals.FILE_SYSTEM_IMAGE_KEY));
-					
-					if(imageInfo.containsKey(Globals.KERNEL_IMAGE_KEY)){
-						l.info("Kernel image information available");
-						downloadRegisterTasks.put(Globals.KERNEL_IMAGE_KEY, downloadAndRegister(imageInfo, Globals.KERNEL_IMAGE_KEY));
-					}
-					
-					if(imageInfo.containsKey(Globals.RAMDISK_IMAGE_KEY)){
-						l.info("Ramdisk image information available");
-						downloadRegisterTasks.put(Globals.RAMDISK_IMAGE_KEY, downloadAndRegister(imageInfo, Globals.RAMDISK_IMAGE_KEY));
-					}
-					
-					//
-					emi = downloadRegisterTasks.get(Globals.FILE_SYSTEM_IMAGE_KEY).get();
-					imageIds.put(Globals.FILE_SYSTEM_IMAGE_KEY, emi);
-					
-					if(imageInfo.containsKey(Globals.KERNEL_IMAGE_KEY)){
-						eki = downloadRegisterTasks.get(Globals.KERNEL_IMAGE_KEY).get();
-						imageIds.put(Globals.KERNEL_IMAGE_KEY, eki);
-					}
-					
-					if(imageInfo.containsKey(Globals.RAMDISK_IMAGE_KEY)){
-						eri = downloadRegisterTasks.get(Globals.RAMDISK_IMAGE_KEY).get();
-						imageIds.put(Globals.RAMDISK_IMAGE_KEY, eri);
-					}
-					
-				}catch(Exception exception){
-					l.error(exception.toString(), exception);
-					//return Globals.ERROR_CODE;
-					throw exception;
-				}
-				
-			}
-			
-			l.info("Filesystem Image id: " + imageIds.get(Globals.FILE_SYSTEM_IMAGE_KEY));
-			if(imageIds.get(Globals.KERNEL_IMAGE_KEY) != null){
-				l.info("Kernel Image id: " + imageIds.get(Globals.KERNEL_IMAGE_KEY));
-			}
-			if(imageIds.get(Globals.RAMDISK_IMAGE_KEY) != null){
-				l.info("Ramdisk Image id: " + imageIds.get(Globals.RAMDISK_IMAGE_KEY));
-			}
-			
-			return toString(imageIds);
-			
-		}catch(Exception exception){
-			l.error(exception.toString(), exception);
-			//return Globals.ERROR_CODE;
-			throw exception;
-		}
-	}
+                                        Future<String> futStr = downloadRegisterTasks.get(Globals.FILE_SYSTEM_IMAGE_KEY);
+                                        if (futStr == null)
+                                            futStr = downloadRegisterTasks.get(Globals.ZFILE_SYSTEM_IMAGE_KEY);
+                                        emi = futStr.get();
+                                        imageIds.put(Globals.FILE_SYSTEM_IMAGE_KEY, emi);
+                                        
+                                        if (imageInfo.containsKey(Globals.KERNEL_IMAGE_KEY)) {
+                                                eki = downloadRegisterTasks.get(Globals.KERNEL_IMAGE_KEY).get();
+                                                imageIds.put(Globals.KERNEL_IMAGE_KEY, eki);
+                                        }
+                                        
+                                        if (imageInfo.containsKey(Globals.RAMDISK_IMAGE_KEY)) {
+                                                eri = downloadRegisterTasks.get(Globals.RAMDISK_IMAGE_KEY).get();
+                                                imageIds.put(Globals.RAMDISK_IMAGE_KEY, eri);
+                                        }
+                                        
+                                } catch (Exception exception) {
+                                        l.error(exception.toString(), exception);
+                                        throw exception;
+                                }
+                                
+                        }
+                        
+                        l.info("Filesystem Image id: " + imageIds.get(Globals.FILE_SYSTEM_IMAGE_KEY));
+                        if (imageIds.get(Globals.KERNEL_IMAGE_KEY) != null)
+                                l.info("Kernel Image id: " + imageIds.get(Globals.KERNEL_IMAGE_KEY));
+                        if (imageIds.get(Globals.RAMDISK_IMAGE_KEY) != null)
+                                l.info("Ramdisk Image id: " + imageIds.get(Globals.RAMDISK_IMAGE_KEY));
+                        
+                        return toString(imageIds);
+                        
+                } catch (Exception exception) {
+                        l.error(exception.toString(), exception);
+                        throw exception;
+                }
+        }
 	
 	private Future<String> downloadAndRegister(Map<String, Pair<String, String>> imageInfo, String type) throws Exception {
 		
@@ -197,6 +199,7 @@ public class RegistrationScript {
 		
 		List<String> validImageTypes = new ArrayList<String>();
 		validImageTypes.add(Globals.FILE_SYSTEM_IMAGE_KEY);
+		validImageTypes.add(Globals.ZFILE_SYSTEM_IMAGE_KEY);
 		validImageTypes.add(Globals.KERNEL_IMAGE_KEY);
 		validImageTypes.add(Globals.RAMDISK_IMAGE_KEY);
 		
@@ -304,7 +307,7 @@ public class RegistrationScript {
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	Pair<String, String> download(String signature, String url) throws Exception {
+        Pair<String, String> download(String signature, String url) throws Exception {
 		
 		l.info("Downloading file with signature: " + signature + " from url: " + url);
 		

@@ -102,7 +102,7 @@ public class BTDownload {
 	 * @return a Pair of the file path and the file's correct signature (SHA-1 hash)
 	 * @throws Exception
 	 */
-	public Pair<String, String> downloadFile(String surl, String signature) throws Exception
+        public Pair<String, String> downloadFile(String surl, String signature) throws Exception
 	{
 		ActiveDownloadMap dlMap = ActiveDownloadMap.getInstance();
 		String wakeObject;
@@ -149,7 +149,7 @@ public class BTDownload {
 						
 						//Exception while downloading file
 						if(filePath == null) {
-							return downloadFile(surl, signature);
+                                                    return downloadFile(surl, signature);
 						}
 					}
 					l.info("File download from URL: " + surl + " complete.");
@@ -184,7 +184,7 @@ public class BTDownload {
 	 * @return downloaded file path and signature
 	 * @throws Exception
 	 */
-	private Pair<String, String> controller(String fileSignature, String surl, String downloadType) throws Exception
+        private Pair<String, String> controller(String fileSignature, String surl, String downloadType) throws Exception
 	{
 		findFreeStorage(fileSignature, surl, downloadType);
 		
@@ -210,9 +210,10 @@ public class BTDownload {
 	 * storage cache, an exception will be thrown.
 	 * @param fileSignature
 	 * @param surl
+         * @param downloadType
 	 * @throws Exception
 	 */
-	private synchronized void findFreeStorage (String fileSignature, String surl, String downloadType)
+        private synchronized void findFreeStorage (String fileSignature, String surl, String downloadType)
 	throws Exception {
 		//fetching the size of the file to be downloaded
 		long fileSize = getFileSize(surl, downloadType);
@@ -266,6 +267,7 @@ public class BTDownload {
 	/**
 	 * Function of fetch size of file corresponding to the given URL
 	 * @param surl
+         * @param downloadType
 	 * @return file size
 	 * @throws Exception
 	 */
