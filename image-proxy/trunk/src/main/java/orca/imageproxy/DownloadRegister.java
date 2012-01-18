@@ -34,12 +34,13 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 		ActiveDownloadMap dlMap = ActiveDownloadMap.getInstance();
 		String wakeObject;
 		String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+
 		String signature = imageInfo.get(type).getFirst();
 		String url = imageInfo.get(type).getSecond();
-		
+
 		l.info("Download and register, Signature: " + signature + 
 			", Url: " + url + ", Type: " + type);
-		
+
 		try {
 			// see if this file with given signature is present in registry
 			String imageId = db.checkImageSignature(signature, type, true);
@@ -58,7 +59,7 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 			// null means we get to load it, otherwise wait and return image id
 			if (imageId != null) {
 				// wait for other threads to load the image
-				synchronized(wakeObject) {
+				synchronized (wakeObject) {
 					while (Globals.IMAGE_INPROGRESS.equals(imageId)) {
 						l.info("Image download from URL: " + url +
 							" in progress; awaiting completion.");
@@ -71,14 +72,14 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 							" for image to download; " +
 							"checking to see if complete...");
 						imageId = db.checkImageSignature(signature, type, false);
-						if(imageId == null)
+						if (imageId == null)
 							return downloadAndRegister(imageInfo, type);
 					}
 				}
 			} else {
 				String imagePath, hash;
 				try {
-					Pair<String, String> downloadInfo = download(signature, url);
+                                        Pair<String, String> downloadInfo = download(signature, url);
 					imagePath = downloadInfo.getFirst();
 					hash = downloadInfo.getSecond();
 					
@@ -95,7 +96,7 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 				}
 								
 				try {
-					imageId = register(imagePath, type);
+                                    imageId = register(imagePath, signature, type);
 				}
 				catch (Exception exception){
 					l.error("Exception encountered while attempting " +
@@ -134,12 +135,14 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 	/**
 	 * function to download and register an image
 	 * @param imagePath
+         * @param signature
+         * @param type
 	 * @return registered image id
 	 * @throws AttributeNotFoundException
 	 * @throws IOException 
 	 * @throws InterruptedException 
 	 */
-	private String register(String imagePath, String type)
+	private String register(String imagePath, String signature, String type)
             throws AttributeNotFoundException, IOException, InterruptedException {
 
 		l.info("Registering downloaded image.");
@@ -159,7 +162,7 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 		// registration script
 		String command =
                     BTDownload.imageproxyHome + File.separator + registerScript + " " +
-                    imagePath + " " + bukkitName + " " + type + " " + Globals.getInstance().getTmpDir();
+                    imagePath + " " + bukkitName + " " + type + " " + Globals.getInstance().getTmpDir() + " " + signature;
 		
 		l.info("Invoking registration script");
 		l.debug(command);
