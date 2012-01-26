@@ -162,7 +162,8 @@ public class DownloadRegister extends RegistrationScript implements Callable<Str
 		// registration script
 		String command =
                     BTDownload.imageproxyHome + File.separator + registerScript + " " +
-                    imagePath + " " + bukkitName + " " + type + " " + Globals.getInstance().getTmpDir() + " " + signature;
+                    imagePath + " " + bukkitName + " " + type + " " + Globals.getInstance().getTmpDir() + " " +
+                    signature + " " + Globals.getInstance().getRegistrationTimeout();
 		
 		l.info("Invoking registration script");
 		l.debug(command);

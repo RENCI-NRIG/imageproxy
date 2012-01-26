@@ -5,6 +5,8 @@
 # Parameter 3: Image type (filesystem/kernel/ramdisk)
 # Parameter 4: Base directory into which to bundle
 # Parameter 5: Signature of image
+# Parameter 6: Timeout, after which we declare the image to have failed
+#              the registration process.
 
 export PATH=${EC2_HOME}/bin:${PATH}
 
@@ -16,7 +18,7 @@ if [ -z ${DATE} ]; then
 	DATE=`date`
 fi
 
-MIN_PARAMS=5
+MIN_PARAMS=6
 if [ $# -ne $MIN_PARAMS ]; then
     echo -n "[$DATE] " >> $IMAGEPROXY_LOG
     echo "Too few parameters specified to registration script; $MIN_PARAMS required." | tee -a $IMAGEPROXY_LOG
@@ -59,11 +61,17 @@ fi
 
 echo "[$DATE] Parameter #4(Bundle path) is $4" >> $IMAGEPROXY_LOG
 echo "[$DATE] Parameter #5(Signature) is $5" >> $IMAGEPROXY_LOG
+echo "[$DATE] Parameter #6(Registration timeout) is $6" >> $IMAGEPROXY_LOG
 TMP_DIR="$4/$5"
+TIMEOUT=$6
+
 echo "[$DATE] Creating working directory $TMP_DIR" >> $IMAGEPROXY_LOG
 RESULT=`mkdir $TMP_DIR 2>> $IMAGEPROXY_LOG`
 
 check_exit_code
+
+# Register a handler to clean up TMP_DIR, upon termination.
+trap 'rm -rf $TMP_DIR' ERR EXIT
 
 # Uncompress compressed images before attempting to bundle
 if $COMPRESSED_FILESYSTEM; then
@@ -157,8 +165,37 @@ if [ -z ${IMAGE_ID} ]; then
     exit 1
 fi
 
-# Remove TMP_DIR (thereby cleaning up)
-rm -rf $TMP_DIR
+## Verify that the image id has become "available" to use
+CHECK_CMD="euca-describe-images | grep "$IMAGE_ID" | awk '{print substr($0, index($0,$4))}' | grep 'available'"
+TIMECOUNT=0
+RC=1
+echo "[$DATE] Polling to ensure that image has become available." >> $IMAGEPROXY_LOG
+echo "[$DATE] Timeout occurs after $TIMEOUT seconds." >> $IMAGEPROXY_LOG
+while true
+do
+    STATUS=`$CHECK_CMD`
+    RC=$?
+    if [ $RC -ne 0 ]; then
+        TIMECOUNT=$((TIMECOUNT+10))
+        sleep 10
+    else
+        break
+    fi
+
+    if [ $TIMECOUNT -ge $TIMEOUT ]; then
+        break
+    fi
+done
+
+if [ $RC -ne 0 ]; then
+    echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+    echo -n "Image failed to become available before timeout expired. Exiting. " | tee -a $IMAGEPROXY_LOG
+    echo "Check $IMAGEPROXY_LOG for more information."
+    echo "" >> $IMAGEPROXY_LOG
+    exit 1
+else
+    echo "[$DATE] Image $IMAGE_ID successfully verified as available." >> $IMAGEPROXY_LOG
+fi
 
 ## Return the registered image id
 echo "$IMAGE_ID"

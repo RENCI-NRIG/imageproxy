@@ -16,6 +16,7 @@ public class Globals {
 	private static final Globals i = new Globals();
 	private Properties p;
         private String tmpDir;
+        private int registrationTimeout = 1800;
 	public static final String proxySettingPropertiesFile="imageproxy-settings.properties";
 	public static final String proxySettingProperties="orca.imageproxy.imageproxy-settings";
 	public static final String SuperblockLocation = "db_registry_state_recovery.lock";
@@ -30,6 +31,7 @@ public class Globals {
 	public static final String ERROR_CODE = "ERROR";
 	
         private static final String tmpDirBaseProperty = "imageproxy.tmpDirBase";
+        private static final String registrationTimeoutProperty = "imageproxy.registrationTimeout";
         private static final String DEFAULT_TMPDIRBASE = "/tmp";
         private static final String TMPDIR_PREFIX = "imageproxy-";
 
@@ -56,9 +58,7 @@ public class Globals {
 
                 String tmpDirBase = p.getProperty(tmpDirBaseProperty);
 		if (tmpDirBase == null || tmpDirBase.length() == 0)
-                    tmpDirBase = System.getProperty("java.io.tmpdir");
-                if (tmpDirBase == null)
-                    tmpDirBase = DEFAULT_TMPDIRBASE;
+                    tmpDirBase = System.getProperty("java.io.tmpdir", DEFAULT_TMPDIRBASE);
 
                 File tmpDir = null;
                 Random rn = new Random();
@@ -88,6 +88,17 @@ public class Globals {
                 }
 
                 this.tmpDir = tmpDir.toString();
+                
+                String registrationTimeout = p.getProperty(registrationTimeoutProperty);
+		if (registrationTimeout != null) {
+                    try {
+                        this.registrationTimeout=Integer.parseInt(registrationTimeout);
+                    }
+                    catch (Exception e) {
+                        l.error("Invalid value specified for property: " + registrationTimeoutProperty);
+                        l.error("Falling back to default value (" + this.registrationTimeout + " seconds).");
+                    }
+                }
 	}
 	
 	public static Globals getInstance() {
@@ -104,5 +115,9 @@ public class Globals {
 
         public String getTmpDir() {
                 return getInstance().tmpDir;
+        }
+
+        public int getRegistrationTimeout() {
+                return getInstance().registrationTimeout;
         }
 }
