@@ -250,6 +250,12 @@ public class BTDownload {
 					throw new IOException("Couldn't delete file " + e.getFilePath());
 				}
 			}
+                        
+                        // HACK - de-couple bukkit garbage collection (below)
+                        // from the local cache.
+                        // De-register and delete image
+                        DeregistrationScript dr = new DeregistrationScript();
+                        dr.deregister(e.getSignature());
 			
 			//delete entry (for the deleted file) from database
 			sqliteDLDatabase.deleteEntry(e.getSignature());
@@ -263,7 +269,7 @@ public class BTDownload {
 		
 		sqliteDLDatabase.updateFileSize(fileSignature, fileSize);
 	}
-	
+
 	/**
 	 * Function of fetch size of file corresponding to the given URL
 	 * @param surl
