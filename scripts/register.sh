@@ -166,7 +166,7 @@ if [ -z ${IMAGE_ID} ]; then
 fi
 
 ## Verify that the image id has become "available" to use
-CHECK_CMD="euca-describe-images | grep "$IMAGE_ID" | awk '{print substr($0, index($0,$4))}' | grep 'available'"
+CHECK_CMD="euca-describe-images | grep $IMAGE_ID | awk '{print substr($0, index($0,$4))}' | grep 'available'"
 TIMECOUNT=0
 RC=1
 echo "[$DATE] Polling to ensure that image has become available." >> $IMAGEPROXY_LOG
