@@ -62,7 +62,7 @@ public class DeregistrationScript {
         l.info("Invoking deregistration script");
         l.debug(command);
 		
-        // invoking registration script
+        // invoking deregistration script
         Process process = Runtime.getRuntime().exec(command);
 		
         // checking if script ran successfully
