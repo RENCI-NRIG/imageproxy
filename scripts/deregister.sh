@@ -53,7 +53,6 @@ echo "[$DATE] $RESULT" >> $IMAGEPROXY_LOG
 ## Extract the image's bucket name and part prefix
 BUKKIT_NAME=`echo $RESULT | awk '{print substr($3, 1, index($3,"/")-1)}'`
 IMG_PREFIX=`echo $RESULT | awk '{str = substr($3, index($3, "/") + 1); sub(/\.manifest\.xml/, "", str); print str}'`
-BUNDLE_MANIFEST_NAME=`echo $RESULT 2> /dev/null| grep "Generating manifest" | awk '{print $NF}'`
 if [ -z ${BUKKIT_NAME} ]; then
     echo -n "[$DATE] " >> $IMAGEPROXY_LOG
     echo -n "Unable to determine image bucket. Exiting. " | tee -a $IMAGEPROXY_LOG
