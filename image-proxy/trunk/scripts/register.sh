@@ -176,13 +176,14 @@ if [ -z ${IMAGE_ID} ]; then
 fi
 
 ## Verify that the image id has become "available" to use
+CHECK_CMD="euca-describe-images | grep $IMAGE_ID | awk '{print substr(\$0, index(\$0,\$4))}' | grep 'available'"
 TIMECOUNT=0
 RC=1
 echo "[$DATE] Polling to ensure that image has become available." >> $IMAGEPROXY_LOG
 echo "[$DATE] Timeout occurs after $TIMEOUT seconds." >> $IMAGEPROXY_LOG
 while true
 do
-    STATUS=`euca-describe-images | grep $IMAGE_ID | awk '{print substr($0, index($0,$4))}' | grep 'available'`
+    STATUS=`eval $CHECK_CMD`
     RC=$?
     if [ $RC -ne 0 ]; then
         TIMECOUNT=$((TIMECOUNT+10))
