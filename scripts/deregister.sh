@@ -26,15 +26,25 @@ if [ -z ${PROXY_EUCA_KEY_DIR} ]; then
     echo "PROXY_EUCA_KEY_DIR environment variable undefined; please set. Exiting." | tee -a $IMAGEPROXY_LOG
     exit 1
 fi
+
 echo "[$DATE] Using PROXY_EUCA_KEY_DIR as ${PROXY_EUCA_KEY_DIR}" >> $IMAGEPROXY_LOG
-source ${PROXY_EUCA_KEY_DIR}/eucarc
+
+if [ -f ${PROXY_EUCA_KEY_DIR}/eucarc ]; then
+    source ${PROXY_EUCA_KEY_DIR}/eucarc
+elif [ -f ${PROXY_EUCA_KEY_DIR}/novarc ]; then
+    source ${PROXY_EUCA_KEY_DIR}/novarc
+else
+    echo -n "[$DATE] " >> $IMAGEPROXY_LOG
+    echo "Directory $PROXY_EUCA_KEY_DIR does not contain a eucarc or novarc. Exiting." | tee -a $IMAGEPROXY_LOG
+    exit 1
+fi
 
 function check_exit_code {
-  if [ $? -ne 0 ]; then
-    echo "Exception while executing script. Check $IMAGEPROXY_LOG for more information."
-    echo "[$DATE] $RESULT Exit code of $EXIT for last command.  Exiting." >> $IMAGEPROXY_LOG
-    exit 1
-  fi
+    if [ $? -ne 0 ]; then
+        echo "Exception while executing script. Check $IMAGEPROXY_LOG for more information."
+        echo "[$DATE] $RESULT Exit code of $EXIT for last command.  Exiting." >> $IMAGEPROXY_LOG
+        exit 1
+    fi
 }   
 
 echo "[$DATE] Parameter #1(Image ID) is $1" >> $IMAGEPROXY_LOG
