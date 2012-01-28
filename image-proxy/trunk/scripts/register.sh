@@ -240,6 +240,10 @@ if [ $RC -ne 0 ]; then
     echo -n "Image failed to become available before timeout expired. Exiting. " | tee -a $IMAGEPROXY_LOG
     echo "Check $IMAGEPROXY_LOG for more information."
     echo "" >> $IMAGEPROXY_LOG
+    # Make an attempt to clean up the image
+    IMG_PREFIX=`basename $BUNDLE_MANIFEST_NAME | awk '{sub(/\.manifest\.xml/, "", $0); print $0}'`
+    euca-deregister $IMAGE_ID
+    euca-delete-bundle -b $BUKKIT_NAME -p $IMG_PREFIX
     kill -USR1 $$
     exit 1
 else
