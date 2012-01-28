@@ -49,6 +49,7 @@ function check_exit_code {
     if [ $? -ne 0 ]; then
         echo "Exception while executing script. Check $IMAGEPROXY_LOG for more information."
         echo "[$DATE] $RESULT Exit code of $EXIT for last command.  Exiting." >> $IMAGEPROXY_LOG
+        kill -USR1 $$
         exit 1
     fi
 }   
@@ -81,7 +82,7 @@ RESULT=`mkdir $TMP_DIR 2>> $IMAGEPROXY_LOG`
 check_exit_code
 
 # Register a handler to clean up TMP_DIR, upon termination.
-trap 'rm -rf $TMP_DIR' ERR EXIT
+trap 'rm -rf $TMP_DIR' USR1 USR2
 
 # Uncompress compressed images before attempting to bundle
 if $COMPRESSED_FILESYSTEM; then
@@ -108,6 +109,7 @@ if $COMPRESSED_FILESYSTEM; then
         echo -n "Unsupported compressed image type. Exiting. " | tee -a $IMAGEPROXY_LOG
         echo "Check $IMAGEPROXY_LOG for more information."
         echo "" >> $IMAGEPROXY_LOG
+        kill -USR1 $$
         exit 1
     fi
 
@@ -132,6 +134,7 @@ if [ -z ${BUNDLE_MANIFEST_NAME} ]; then
     echo -n "Unable to bundle image. Exiting. " | tee -a $IMAGEPROXY_LOG
     echo "Check $IMAGEPROXY_LOG for more information."
     echo "" >> $IMAGEPROXY_LOG
+    kill -USR1 $$
     exit 1
 fi
 
@@ -152,6 +155,7 @@ if [ -z ${UPLOADED_IMAGE_NAME} ]; then
     echo -n "Unable to upload bundle. Exiting. " | tee -a $IMAGEPROXY_LOG
     echo "Check $IMAGEPROXY_LOG for more information."
     echo "" >> $IMAGEPROXY_LOG
+    kill -USR1 $$
     exit 1
 fi
 
@@ -172,6 +176,7 @@ if [ -z ${IMAGE_ID} ]; then
     echo -n "Unable to register image. Exiting. " | tee -a $IMAGEPROXY_LOG
     echo "Check $IMAGEPROXY_LOG for more information."
     echo "" >> $IMAGEPROXY_LOG
+    kill -USR1 $$
     exit 1
 fi
 
@@ -202,9 +207,12 @@ if [ $RC -ne 0 ]; then
     echo -n "Image failed to become available before timeout expired. Exiting. " | tee -a $IMAGEPROXY_LOG
     echo "Check $IMAGEPROXY_LOG for more information."
     echo "" >> $IMAGEPROXY_LOG
+    kill -USR1 $$
     exit 1
 else
     echo "[$DATE] Image $IMAGE_ID successfully verified as available." >> $IMAGEPROXY_LOG
+    # Clean up working dir by calling the trap
+    kill -USR2 $$
 fi
 
 ## Return the registered image id
