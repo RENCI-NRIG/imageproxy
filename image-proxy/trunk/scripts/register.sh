@@ -186,18 +186,51 @@ TIMECOUNT=0
 RC=1
 echo "[$DATE] Polling to ensure that image has become available." >> $IMAGEPROXY_LOG
 echo "[$DATE] Timeout occurs after $TIMEOUT seconds." >> $IMAGEPROXY_LOG
+
+# Doing something "clever" again - this loop executes in a background subshell.
+# The TIMECOUNT and RC variables exist in parent and child *independently*.
+# The trap set in the child is local to the child.
+(
+    trap 'exit $RC' ALRM
+    while true
+    do
+        STATUS=`eval $CHECK_CMD`
+        RC=$?
+        if [ $RC -ne 0 ]; then
+            TIMECOUNT=$((TIMECOUNT+10))
+            sleep 10
+        else
+            break
+        fi
+
+        if [ $TIMECOUNT -ge $TIMEOUT ]; then
+            break
+        fi
+    done
+    exit $RC
+) &
+
+CHILDPID=$!
+
+# Now, we loop in the parent, checking to see if the child has returned.
+# If it has not, we increment TIMECOUNT and sleep.
+# If it has, we exit the loop after setting RC to the exit status of the child.
+# If we have not exited the loop, and TIMECOUNT has expired,
+# we kill the child, and exit the loop.
 while true
 do
-    STATUS=`eval $CHECK_CMD`
-    RC=$?
-    if [ $RC -ne 0 ]; then
+    JOBCOUNT=$(jobs -rp | wc -l)
+    if [ $JOBCOUNT -ne 0 ]; then
         TIMECOUNT=$((TIMECOUNT+10))
         sleep 10
     else
+        wait $CHILDPID
+        RC=$?
         break
     fi
 
     if [ $TIMECOUNT -ge $TIMEOUT ]; then
+        kill -ALRM $CHILDPID
         break
     fi
 done
