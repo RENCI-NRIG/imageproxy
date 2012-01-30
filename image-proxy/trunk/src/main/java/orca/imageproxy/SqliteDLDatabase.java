@@ -68,7 +68,6 @@ public class SqliteDLDatabase extends SqliteBase{
 		String path = null;
 		try {
 			Statement statement = connection.createStatement();
-			int newRef = 1;
 			int newActiveRef = 1;
 			try {
 				statement.setQueryTimeout(Globals.JDBC_OPERATION_TIMEOUT);
@@ -76,25 +75,24 @@ public class SqliteDLDatabase extends SqliteBase{
 				try {
 					if (rs.next()) {
 						path = rs.getString("FILEPATH");
-						newRef = rs.getInt("REF") + 1;
-                                        	newActiveRef = rs.getInt("ACTIVEREF") + 1;
+                        newActiveRef = rs.getInt("ACTIVEREF") + 1;
 					}
 				}
 				finally { rs.close(); }
 				if (mark) {
 					if (path != null) {
-						query = "UPDATE " + filestable + " SET REF = " + newRef +
+						query = "UPDATE " + filestable +
 							", ACTIVEREF = " + newActiveRef +
 							", LASTREF = " + System.currentTimeMillis() +
 							" WHERE SIGNATURE = " + dbString(signature);
 					}
 					else {
-					// SIGNATURE, FILEPATH, FILESIZE, REF, ACTIVEREF, SEEDING, STATUS,
+					// SIGNATURE, FILEPATH, FILESIZE, ACTIVEREF, SEEDING, STATUS,
 					// LASTREF, DOWNLOADTYPE, URL, TORRENTFILEPATH
 						query = "INSERT INTO " + filestable + " VALUES (" + 
 						dbString(signature) + ", " +
 						dbString(Globals.IMAGE_INPROGRESS) +
-						", 0, 1, 1, 0, 0, " + System.currentTimeMillis() + ", " +
+						", 0, 1, 0, 0, " + System.currentTimeMillis() + ", " +
 						dbString(downloadType) + ", " + dbString(url) + ", null)";
 					}
 					statement.executeUpdate(query);
@@ -308,7 +306,7 @@ public class SqliteDLDatabase extends SqliteBase{
 				statement.executeUpdate("DROP TABLE IF EXISTS " + filestable);
 				statement.executeUpdate("DROP VIEW IF EXISTS " + moststaleview);
 				statement.executeUpdate("CREATE TABLE " + filestable +" " +
-						"(SIGNATURE STRING, FILEPATH STRING, FILESIZE UNSIGNED BIG INT, REF UNSIGNED INT, ACTIVEREF UNSIGNED INT, SEEDING SMALLINT,  STATUS SMALLINT, LASTREF BIG INT, DOWNLOADTYPE STRING, URL STRING, TORRENTFILEPATH STRING, PRIMARY KEY(SIGNATURE))");      
+						"(SIGNATURE STRING, FILEPATH STRING, FILESIZE UNSIGNED BIG INT, ACTIVEREF UNSIGNED INT, SEEDING SMALLINT,  STATUS SMALLINT, LASTREF BIG INT, DOWNLOADTYPE STRING, URL STRING, TORRENTFILEPATH STRING, PRIMARY KEY(SIGNATURE))");      
 				statement.executeUpdate("CREATE VIEW " + moststaleview + " AS SELECT * FROM " + filestable + " WHERE STATUS = 1 AND ACTIVEREF = 0 ORDER BY LASTREF");
 	            
 				createSuperblock();
