@@ -12,10 +12,10 @@ if [ -z ${DATE} ]; then
 	DATE=`date`
 fi
 
-MIN_PARAMS=1
-if [ $# -ne $MIN_PARAMS ]; then
+NUM_PARAMS=1
+if [ $# -ne $NUM_PARAMS ]; then
     echo -n "[$DATE] " >> $IMAGEPROXY_LOG
-    echo "Wrong number of parameters specified to de-registration script; $MIN_PARAMS required." | tee -a $IMAGEPROXY_LOG
+    echo "Wrong number of parameters specified to de-registration script; $NUM_PARAMS required." | tee -a $IMAGEPROXY_LOG
     exit 1
 fi
 
