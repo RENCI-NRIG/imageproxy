@@ -18,10 +18,10 @@ if [ -z ${DATE} ]; then
 	DATE=`date`
 fi
 
-MIN_PARAMS=6
-if [ $# -ne $MIN_PARAMS ]; then
+NUM_PARAMS=6
+if [ $# -ne $NUM_PARAMS ]; then
     echo -n "[$DATE] " >> $IMAGEPROXY_LOG
-    echo "Wrong number of parameters specified to registration script; $MIN_PARAMS required." | tee -a $IMAGEPROXY_LOG
+    echo "Wrong number of parameters specified to registration script; $NUM_PARAMS required." | tee -a $IMAGEPROXY_LOG
     exit 1
 fi
 
@@ -91,6 +91,7 @@ if $COMPRESSED_FILESYSTEM; then
     check_exit_code
 
     UNCOMPRESSED_IMG="$TMP_DIR/$(basename $IMG_LOCATION).uncompressed"
+    IMG_WORKFILE="$TMP_DIR/$(basename $IMG_LOCATION).tmp"
     if [ -n "$(echo $RESULT | grep -i 'gzip\|compress')" ]; then
         UNCOMPRESS_CMD="gzip -dc"
     elif [ -n "$(echo $RESULT | grep -i bzip2)" ]; then
@@ -101,8 +102,8 @@ if $COMPRESSED_FILESYSTEM; then
 
     if [ -n "$UNCOMPRESS_CMD" ]; then
         echo "[$DATE] Uncompressing image..." >> $IMAGEPROXY_LOG
-        echo "[$DATE] $UNCOMPRESS_CMD $IMG_LOCATION > $UNCOMPRESSED_IMG" >> $IMAGEPROXY_LOG
-        RESULT=`$UNCOMPRESS_CMD $IMG_LOCATION > $UNCOMPRESSED_IMG 2>> $IMAGEPROXY_LOG`
+        echo "[$DATE] $UNCOMPRESS_CMD $IMG_LOCATION > $IMG_WORKFILE" >> $IMAGEPROXY_LOG
+        RESULT=`$UNCOMPRESS_CMD $IMG_LOCATION > $IMG_WORKFILE 2>> $IMAGEPROXY_LOG`
         check_exit_code
     else
         echo -n "[$DATE] " >> $IMAGEPROXY_LOG
@@ -113,6 +114,24 @@ if $COMPRESSED_FILESYSTEM; then
         exit 1
     fi
 
+    # Now, check if the workfile is a tar archive; if so untar it
+    RESULT=`file -i $IMG_WORKFILE 2>> $IMAGEPROXY_LOG`
+    check_exit_code
+    if [ -n "$(echo $RESULT | grep -i 'x-tar')" ]; then
+        # OK - we were sent a tarred, zipped filesystem.
+        # We operate under the pre-agreed convention that the tar archive will
+        # contain a file named "filesystem"
+        echo "[$DATE] Uncompressed file is a tar archive. Un-tarring..." >> $IMAGEPROXY_LOG
+        mv $IMG_WORKFILE $IMG_WORKFILE.tar
+        echo "[$DATE] tar -OSxf $IMG_WORKFILE.tar filesystem > $IMG_WORKFILE" >> $IMAGEPROXY_LOG
+        RESULT=`tar -OSxf $IMG_WORKFILE.tar filesystem > $IMG_WORKFILE 2>> $IMAGEPROXY_LOG`
+        check_exit_code
+        rm $IMG_WORKFILE.tar
+    fi
+
+    # Finally, move the image workfile to its final name
+    mv $IMG_WORKFILE $UNCOMPRESSED_IMG
+ 
     IMG_LOCATION=$UNCOMPRESSED_IMG
     echo "[$DATE] Image successfully uncompressed." >> $IMAGEPROXY_LOG
 fi
@@ -127,7 +146,7 @@ check_exit_code
 
 echo "[$DATE] $RESULT" >> $IMAGEPROXY_LOG
 
-## Extract the name of the bundled image's manifest file, in preparaion for uploading the image
+## Extract the name of the bundled image's manifest file, in preparation for uploading the image
 BUNDLE_MANIFEST_NAME=`echo $RESULT 2> /dev/null| grep "Generating manifest" | awk '{print $NF}'`
 if [ -z ${BUNDLE_MANIFEST_NAME} ]; then
     echo -n "[$DATE] " >> $IMAGEPROXY_LOG
@@ -246,11 +265,11 @@ if [ $RC -ne 0 ]; then
     euca-delete-bundle -b $BUKKIT_NAME -p $IMG_PREFIX
     kill -USR1 $$
     exit 1
-else
-    echo "[$DATE] Image $IMAGE_ID successfully verified as available." >> $IMAGEPROXY_LOG
-    # Clean up working dir by calling the trap
-    kill -USR2 $$
 fi
+
+echo "[$DATE] Image $IMAGE_ID successfully verified as available." >> $IMAGEPROXY_LOG
+# Clean up working dir by calling the trap
+kill -USR2 $$
 
 ## Return the registered image id
 echo "$IMAGE_ID"
