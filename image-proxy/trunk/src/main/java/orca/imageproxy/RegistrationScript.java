@@ -73,9 +73,10 @@ public class RegistrationScript {
          */
         public String RegisterImage(String url, String signature) throws Exception{
 
-                try{
-
+                try {
                         Properties imageIds = new Properties();
+                        signature = signature.trim();
+                        url = url.trim();
                         
                         if (testMode) {
                                 l.info("Test mode enabled. Sleeping " + testModeSleep + " msec.");
