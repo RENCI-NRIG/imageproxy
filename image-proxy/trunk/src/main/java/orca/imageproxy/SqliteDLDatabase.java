@@ -75,16 +75,16 @@ public class SqliteDLDatabase extends SqliteBase{
 				try {
 					if (rs.next()) {
 						path = rs.getString("FILEPATH");
-                        newActiveRef = rs.getInt("ACTIVEREF") + 1;
+						newActiveRef = rs.getInt("ACTIVEREF") + 1;
 					}
 				}
 				finally { rs.close(); }
 				if (mark) {
 					if (path != null) {
-						query = "UPDATE " + filestable +
-							", ACTIVEREF = " + newActiveRef +
-							", LASTREF = " + System.currentTimeMillis() +
-							" WHERE SIGNATURE = " + dbString(signature);
+						query = "UPDATE " + filestable + " SET " +
+							"ACTIVEREF=" + newActiveRef + ", " +
+							"LASTREF=" + System.currentTimeMillis() + " " +
+							"WHERE SIGNATURE=" + dbString(signature);
 					}
 					else {
 					// SIGNATURE, FILEPATH, FILESIZE, ACTIVEREF, SEEDING, STATUS,
