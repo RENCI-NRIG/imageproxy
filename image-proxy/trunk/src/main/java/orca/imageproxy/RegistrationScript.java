@@ -75,8 +75,8 @@ public class RegistrationScript {
 
                 try {
                         Properties imageIds = new Properties();
-                        signature = signature.trim();
-                        url = url.trim();
+                        String cleanSig = signature.trim();
+                        String cleanURL = url.trim();
                         
                         if (testMode) {
                                 l.info("Test mode enabled. Sleeping " + testModeSleep + " msec.");
@@ -96,14 +96,14 @@ public class RegistrationScript {
                                 
                         } else {
                                 
-                                Pair<String, String> downloadInfo = download(signature, url);
+                                Pair<String, String> downloadInfo = download(cleanSig, cleanURL);
                                 String imagePath = downloadInfo.getFirst();
                                 String hash = downloadInfo.getSecond();
                                 
-                                if(!hash.equals(signature)){
-                                        throw new Exception("Provided signature " + signature +
+                                if(!hash.equals(cleanSig)){
+                                        throw new Exception("Provided signature " + cleanSig +
                                                         " does not match computed signature " +
-                                                        hash + " for metadata file at URL: " + url);
+                                                        hash + " for metadata file at URL: " + cleanURL);
                                 }
                                 
                                 String emi, eki, eri;
@@ -113,7 +113,7 @@ public class RegistrationScript {
                                         
                                         Map<String, Pair<String, String>> imageInfo = parseMetadata(imagePath);
                                         
-                                        SqliteDLDatabase.getInstance().removeReference(signature);
+                                        SqliteDLDatabase.getInstance().removeReference(cleanSig);
                                         
                                         HashMap<String, Future<String>> downloadRegisterTasks = new HashMap<String, Future<String>>();
 
