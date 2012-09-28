@@ -4,6 +4,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import java.lang.Exception;
 import java.io.ByteArrayInputStream;
 import java.util.Properties;
 
@@ -159,7 +160,8 @@ public class imageproxyclient {
 				System.out.println("Error");
 			}
 			
-		}catch(Exception e){
+		}
+                catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
