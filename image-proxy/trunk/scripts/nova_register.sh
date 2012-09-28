@@ -137,10 +137,10 @@ fi
 
 ## Add the image into glance
 IMG_ID="$(basename $IMG_LOCATION)"
-ADD_CMD="glance add name=$IMG_ID --silent-upload is_public=true $ADD_PARAM < $IMG_LOCATION"
+ADD_CMD="cat $IMG_LOCATION | glance add name=$IMG_ID --silent-upload is_public=true $ADD_PARAM"
 echo "[$DATE] Adding image..." >> $IMAGEPROXY_LOG
 echo "[$DATE] $ADD_CMD" >> $IMAGEPROXY_LOG
-RESULT=`$ADD_CMD 2>> $IMAGEPROXY_LOG`
+RESULT=`eval $ADD_CMD 2>> $IMAGEPROXY_LOG`
 
 check_exit_code
 
