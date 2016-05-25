@@ -9,6 +9,23 @@
 	<url>https://geni-orca.renci.org/orca-doc</url>
 
 	<packaging>jar</packaging>
+        <issueManagement>
+                <system>GitHub</system>
+                <url>https://github.com/RENCI-NRIG/imageproxy</url>
+        </issueManagement>
+        <ciManagement>
+                <system>Jenkins</system>
+                <url>https://ci.exogeni.net</url>
+        </ciManagement>
+        <scm>
+                <connection>scm:git:https://github.com/RENCI-NRIG/imageproxy.git</connection>
+                <developerConnection>scm:git:https://github.com/RENCI-NRIG/imageproxy.git</developerConnection>
+                <url>https://github.com/RENCI-NRIG/imageproxy</url>
+        </scm>
+        <organization>
+                <name>RENCI (Renaissance Computing Institute)</name>
+                <url>http://www.renci.org</url>
+        </organization>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
