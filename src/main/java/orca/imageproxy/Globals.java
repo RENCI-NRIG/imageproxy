@@ -25,6 +25,7 @@ public class Globals {
 	
 	public static final String FILE_SYSTEM_IMAGE_KEY = "FILESYSTEM";
 	public static final String ZFILE_SYSTEM_IMAGE_KEY = "ZFILESYSTEM";
+        public static final String QCOW2_SYSTEM_IMAGE_KEY = "QCOW2";
 	public static final String KERNEL_IMAGE_KEY = "KERNEL";
 	public static final String RAMDISK_IMAGE_KEY = "RAMDISK";
 	public static final String IMAGE_INPROGRESS = "INPROGRESS";

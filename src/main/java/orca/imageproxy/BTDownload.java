@@ -86,7 +86,6 @@ public class BTDownload {
 		l.info("Available space for downloads = "+ CACHE_SIZE + " bytes");
 		
 		new File(BTDownload.DOWNLOADFOLDER).mkdir();
-		initSession(imageproxyHome);
 		
 		//clear the files in downloading status
 		l.info("attempting to clear the downloading files left by the last nasty crash");
@@ -388,8 +387,6 @@ public class BTDownload {
 		return correctHash;
 	}
 
-	public native void initSession(String rootfolder);
-	
 	/**
 	 * get length of a file to be downloaded by bt protocol
 	 * @param btUrl
@@ -506,9 +503,5 @@ public class BTDownload {
 			if(filelist[i].isFile()&&filelist[i].getName().endsWith(".part"))
 				filelist[i].delete();
 		}
-	}
-
-	static {
-		System.loadLibrary("btclient"); // the bt c library we are hooking up
 	}
 }
