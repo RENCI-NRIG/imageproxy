@@ -59,14 +59,16 @@ echo "[$DATE] Parameter #2(Bukkit name) is $2" >> $IMAGEPROXY_LOG
 BUKKIT_NAME=$2
 
 COMPRESSED_FILESYSTEM=false
-ADD_PARAM="container_format=ami disk_format=ami"
+ADD_PARAM="--disk-format ami --container-format ami"
 echo "[$DATE] Parameter #3(Image type) is $3" >> $IMAGEPROXY_LOG
 if [ "$3" = "KERNEL" ]; then
-    ADD_PARAM="container_format=aki disk_format=aki"
+    ADD_PARAM="--disk-format aki --container-format aki"
 elif [ "$3" = "RAMDISK" ]; then
-    ADD_PARAM="container_format=ari disk_format=ari"
+    ADD_PARAM="--disk-format ari --container-format ari"
 elif [ "$3" = "ZFILESYSTEM" ]; then
     COMPRESSED_FILESYSTEM=true
+elif [ "$3" = "QCOW2" ]; then
+    ADD_PARAM="--disk-format qcow2 --container-format bare"
 fi
 
 echo "[$DATE] Parameter #4(Bundle path) is $4" >> $IMAGEPROXY_LOG
@@ -137,7 +139,7 @@ fi
 
 ## Add the image into glance
 IMG_ID="$BUKKIT_NAME/$(basename $IMG_LOCATION)"
-ADD_CMD="cat $IMG_LOCATION | glance add name=$IMG_ID --silent-upload is_public=true $ADD_PARAM"
+ADD_CMD="openstack image create $IMG_ID --file $IMG_LOCATION $ADD_PARAM --public"
 echo "[$DATE] Adding image..." >> $IMAGEPROXY_LOG
 echo "[$DATE] $ADD_CMD" >> $IMAGEPROXY_LOG
 RESULT=`eval $ADD_CMD 2>> $IMAGEPROXY_LOG`
@@ -147,7 +149,7 @@ check_exit_code
 echo "[$DATE] $RESULT" >> $IMAGEPROXY_LOG
 
 ## Extract the image's UUID
-IMG_UUID=`echo $RESULT | sed -e 's/^.*ID:\ //'`
+IMG_UUID=`openstack image list -f value | grep $IMG_ID | awk '{print $1}'`
 
 # Clean up working dir by calling the trap
 kill -USR2 $$

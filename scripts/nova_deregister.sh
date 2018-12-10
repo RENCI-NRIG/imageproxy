@@ -49,7 +49,7 @@ echo "[$DATE] Parameter #1(Image ID) is $1" >> $IMAGEPROXY_LOG
 IMG_ID=$1
 
 ## Delete the image
-DELETE_CMD="glance -f delete $IMG_ID"
+DELETE_CMD="openstack image delete $IMG_ID"
 echo "[$DATE] Deleting image..." >> $IMAGEPROXY_LOG
 echo "[$DATE] $DELETE_CMD" >> $IMAGEPROXY_LOG
 RESULT=`$DELETE_CMD 2>> $IMAGEPROXY_LOG`
