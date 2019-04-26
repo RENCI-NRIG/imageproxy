@@ -105,6 +105,10 @@ $ cp $IMAGEPROXY_SRC/scripts/nova_deregister.sh $IMAGEPROXY_HOME/scripts/deregis
  ```
 NOTE1: mkdir $IMAGEPROXY_HOME/logs; mkdir $IMAGEPROXY_HOME/settings; if they don't exist
 
+For CentOS7, copy service file
+```
+$ cp $IMAGEPROXY_SRC/scripts/imageproxy.service /usr/lib/systemd/system
+```
 ### Deploy the service to Axis2 or Tomcat
 - For standalone Axis2 (default port 8080), copy the jar file into the services directory and start the service  
 ```
@@ -117,4 +121,10 @@ $ cd $AXIS2_HOME; nohup bin/axis2server.sh &
 $ cp target/imageproxy-1.0-SNAPSHOT.aar $TOMCAT_ROOT/webapps/axis2/WEB-INF/services
 
 $ $TOMCAT_ROOT/shutdown.sh; $TOMCAT_ROOT/startup.sh
+```
+
+For CentOS7, start service 
+```
+$ systemctl enable imageproxy.service
+$ systemctl start imageproxy.service
 ```
