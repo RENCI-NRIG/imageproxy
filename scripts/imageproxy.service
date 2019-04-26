@@ -1,0 +1,12 @@
+[Unit]
+Description=imageproxy.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+StandardOutput=journal+console
+ExecStart=/opt/imageproxy/start_imgproxy.sh
+ExecStop=/opt/imageproxy/stop_imgproxy.sh
+
+[Install]
+WantedBy=default.target
