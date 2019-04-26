@@ -102,6 +102,8 @@ Install the scripts under $IMAGEPROXY_HOME/scripts (the location of the scripts 
 $ mkdir $IMAGEPROXY_HOME/scripts
 $ cp $IMAGEPROXY_SRC/scripts/nova_register.sh $IMAGEPROXY_HOME/scripts/register.sh
 $ cp $IMAGEPROXY_SRC/scripts/nova_deregister.sh $IMAGEPROXY_HOME/scripts/deregister.sh
+$ cp $IMAGEPROXY_SRC/scripts/start_imgproxy.sh $IMAGEPROXY_HOME/scripts/
+$ cp $IMAGEPROXY_SRC/scripts/stop_imgproxy.sh $IMAGEPROXY_HOME/scripts/
  ```
 NOTE1: mkdir $IMAGEPROXY_HOME/logs; mkdir $IMAGEPROXY_HOME/settings; if they don't exist
 
