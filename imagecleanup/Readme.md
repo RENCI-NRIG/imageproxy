@@ -1,6 +1,6 @@
 # Image Proxy Cleanup Script
 
-This script is designed to delete images both from disk and Openstack based on their age. Any image older than configured age is deleted both from disk and openstack only if there are no active instances allocated with it.
+This script is designed to delete images both from disk and Openstack based on their age. Any image older than configured age is deleted both from disk and openstack only if there are no active instances associated with it.
 
 # Configuration 
 It requires following variables to be configured:
