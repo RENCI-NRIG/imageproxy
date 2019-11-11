@@ -1,4 +1,4 @@
 export OMD_SITE=
-export OMD_ROOT=/root/omd
+export OMD_ROOT=/opt/imageproxy/imagecleanup
 export IMAGE_PROXY_DB='/opt/imageproxy/imageproxy.db'
 export EUCA_KEY_DIR=/etc/orca/am+broker-12080/ec2/
