@@ -1,0 +1,3 @@
+cleanup_paths = [
+    '/opt/imageproxy/download/*',
+]
