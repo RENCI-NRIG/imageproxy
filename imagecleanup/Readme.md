@@ -6,7 +6,7 @@ This script is designed to delete images both from disk and Openstack based on t
 It requires following variables to be configured:
 ```
 export OMD_SITE=
-export OMD_ROOT=/root/omd
+export OMD_ROOT=/opt/imageproxy/imagecleanup
 export IMAGE_PROXY_DB='/opt/imageproxy/imageproxy.db'
 export EUCA_KEY_DIR=/etc/orca/am+broker-12080/ec2/
 ```
@@ -35,4 +35,18 @@ min_free_bytes = 5368709120
 Script can be executed as
 ```
 ./imgdiskspace -v
+```
+
+# Setting up a cron job
+1. Update environment file to setup environment variables and create a profile for image cleanup by running the below command as root user.
+```
+cat environment >> /etc/profile.d/imgcleanup.sh
+```
+2. Add the following line in /etc/crontab
+```
+  50 23 *  *  * root /opt/imageproxy/imagecleanup/diskspace -v
+```
+3. Restart cron service
+```
+service crond restart 
 ```
