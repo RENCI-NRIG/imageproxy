@@ -1,3 +1,5 @@
+# The code is no longer being maintained. The repo is kept for historical reasons.
+
 # imageproxy
 ImageProxy for ORCA
 
